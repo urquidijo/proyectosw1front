@@ -18,6 +18,8 @@ import {
   getGenerationPlanRequest,
 } from "@/app/lib/generation-plans";
 import { GenerationPlan, PlanRule } from "@/app/types/generation-plan";
+import { generateSqlSchemaRequest } from "@/app/lib/sql-schema-generator";
+import { GeneratedSqlSchema } from "@/app/types/generated-sql-schema";
 
 const EXAMPLE_SQL = `CREATE TABLE clientes (
   id SERIAL PRIMARY KEY,
@@ -58,6 +60,13 @@ export default function SqlImportsPage() {
 
   const [analyzingPlan, setAnalyzingPlan] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState(false);
+  type SqlInputMode = "manual" | "file" | "ai";
+
+  const [sqlInputMode, setSqlInputMode] = useState<SqlInputMode>("manual");
+  const [schemaDescription, setSchemaDescription] = useState("");
+  const [generatingSqlSchema, setGeneratingSqlSchema] = useState(false);
+  const [generatedSqlSchema, setGeneratedSqlSchema] =
+    useState<GeneratedSqlSchema | null>(null);
 
   useEffect(() => {
     if (projectId) {
@@ -99,6 +108,86 @@ export default function SqlImportsPage() {
     } finally {
       setLoadingImports(false);
     }
+  }
+
+  async function handleGenerateSqlFromDescription() {
+    setError("");
+
+    if (!schemaDescription.trim()) {
+      setError("Debes describir la base de datos que quieres crear");
+      return;
+    }
+
+    setGeneratingSqlSchema(true);
+
+    try {
+      const token = getToken();
+
+      if (!token) {
+        throw new Error("No existe una sesión activa");
+      }
+
+      if (!projectId) {
+        throw new Error("Proyecto no válido");
+      }
+
+      const generated = await generateSqlSchemaRequest(
+        token,
+        projectId,
+        schemaDescription,
+      );
+
+      setGeneratedSqlSchema(generated);
+      setSql(generated.sql);
+      setFileName("");
+      setSelectedImport(null);
+      setGenerationPlan(null);
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Error al generar el esquema SQL con IA",
+      );
+    } finally {
+      setGeneratingSqlSchema(false);
+    }
+  }
+
+  async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith(".sql")) {
+      setError("Por ahora solo se permiten archivos .sql");
+      return;
+    }
+
+    const content = await file.text();
+
+    setSql(content);
+    setFileName(file.name);
+    setGeneratedSqlSchema(null);
+    setSelectedImport(null);
+    setGenerationPlan(null);
+    setError("");
+  }
+  function loadExampleSql() {
+    setSql(EXAMPLE_SQL);
+    setSqlInputMode("manual");
+    setFileName("");
+    setGeneratedSqlSchema(null);
+    setSelectedImport(null);
+    setGenerationPlan(null);
+  }
+  function clearEditor() {
+    setSql("");
+    setFileName("");
+    setSchemaDescription("");
+    setGeneratedSqlSchema(null);
+    setSelectedImport(null);
+    setGenerationPlan(null);
+    setError("");
   }
 
   async function loadGenerationPlan(importId: string) {
@@ -316,6 +405,8 @@ export default function SqlImportsPage() {
       setSelectedImport(data);
       setSql(data.originalSql ?? "");
       setFileName("");
+      setGeneratedSqlSchema(null);
+      setSqlInputMode("manual");
     } catch (error) {
       setError(
         error instanceof Error
@@ -369,36 +460,6 @@ export default function SqlImportsPage() {
     } finally {
       setDeletingId(null);
     }
-  }
-
-  async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-
-    if (!file) return;
-
-    if (!file.name.toLowerCase().endsWith(".sql")) {
-      setError("Por ahora solo se permiten archivos .sql");
-      return;
-    }
-
-    const content = await file.text();
-
-    setSql(content);
-    setFileName(file.name);
-    setError("");
-  }
-
-  function loadExampleSql() {
-    setSql(EXAMPLE_SQL);
-    setFileName("");
-    setSelectedImport(null);
-  }
-
-  function clearEditor() {
-    setSql("");
-    setFileName("");
-    setSelectedImport(null);
-    setError("");
   }
 
   const selectedTables = useMemo(
@@ -458,9 +519,10 @@ export default function SqlImportsPage() {
             </h1>
 
             <p className="mt-4 max-w-3xl text-slate-600">
-              Pega un script SQL o sube un archivo <strong>.sql</strong>.
-              SynData detectará tablas, columnas, llaves primarias y relaciones
-              para luego generar datos sintéticos coherentes.
+              Pega un script SQL, sube un archivo <strong>.sql</strong> o
+              describe tu base de datos en lenguaje natural. SynData analizará
+              la estructura para detectar tablas, columnas, llaves primarias y
+              relaciones.
             </p>
           </section>
 
@@ -475,11 +537,12 @@ export default function SqlImportsPage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-bold text-slate-900">
-                    Script SQL
+                    Estructura de entrada
                   </h2>
 
                   <p className="mt-1 text-sm text-slate-500">
-                    Puedes pegarlo o cargarlo desde un archivo.
+                    Puedes pegar SQL, subir un archivo o crearlo desde lenguaje
+                    natural.
                   </p>
                 </div>
 
@@ -502,29 +565,142 @@ export default function SqlImportsPage() {
                 </div>
               </div>
 
+              <div className="mt-6 grid grid-cols-3 rounded-xl bg-slate-100 p-1">
+                <button
+                  type="button"
+                  onClick={() => setSqlInputMode("manual")}
+                  className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                    sqlInputMode === "manual"
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  Pegar SQL
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSqlInputMode("file")}
+                  className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                    sqlInputMode === "file"
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  Subir .sql
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSqlInputMode("ai")}
+                  className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                    sqlInputMode === "ai"
+                      ? "bg-white text-violet-700 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  Crear con IA
+                </button>
+              </div>
+
               <form onSubmit={handleAnalyze} className="mt-6 space-y-5">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Archivo SQL
-                  </label>
-
-                  <input
-                    type="file"
-                    accept=".sql"
-                    onChange={handleFileChange}
-                    className="block w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 file:mr-4 file:rounded-md file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-700"
-                  />
-
-                  {fileName && (
-                    <p className="mt-2 text-xs text-slate-500">
-                      Archivo cargado: {fileName}
+                {sqlInputMode === "manual" && (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm text-slate-600">
+                      Pega directamente un script DDL PostgreSQL. Luego podrás
+                      revisarlo y analizarlo.
                     </p>
-                  )}
-                </div>
+                  </div>
+                )}
+
+                {sqlInputMode === "file" && (
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-slate-700">
+                      Archivo SQL
+                    </label>
+
+                    <input
+                      type="file"
+                      accept=".sql"
+                      onChange={handleFileChange}
+                      className="block w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 file:mr-4 file:rounded-md file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-700"
+                    />
+
+                    {fileName && (
+                      <p className="mt-2 text-xs text-slate-500">
+                        Archivo cargado: {fileName}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {sqlInputMode === "ai" && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">
+                        Describe la base de datos
+                      </label>
+
+                      <textarea
+                        value={schemaDescription}
+                        onChange={(event) =>
+                          setSchemaDescription(event.target.value)
+                        }
+                        className="min-h-32 w-full rounded-xl border border-slate-300 bg-white p-4 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-violet-500"
+                        placeholder="Ejemplo: Quiero una base para una clínica con pacientes, médicos, citas, recetas y detalle de medicamentos."
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleGenerateSqlFromDescription}
+                      disabled={generatingSqlSchema}
+                      className="w-full rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {generatingSqlSchema
+                        ? "Generando estructura SQL..."
+                        : "Generar SQL con IA"}
+                    </button>
+
+                    {generatedSqlSchema && (
+                      <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-violet-500">
+                          Esquema generado
+                        </p>
+
+                        <h3 className="mt-2 font-semibold text-violet-950">
+                          {generatedSqlSchema.title}
+                        </h3>
+
+                        <p className="mt-2 text-sm text-violet-800">
+                          {generatedSqlSchema.summary}
+                        </p>
+
+                        {generatedSqlSchema.assumptions.length > 0 && (
+                          <div className="mt-4">
+                            <p className="text-sm font-semibold text-violet-900">
+                              Supuestos tomados
+                            </p>
+
+                            <ul className="mt-2 space-y-1 text-sm text-violet-800">
+                              {generatedSqlSchema.assumptions.map(
+                                (assumption, index) => (
+                                  <li key={`${assumption}-${index}`}>
+                                    • {assumption}
+                                  </li>
+                                ),
+                              )}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div>
                   <label className="mb-2 block text-sm font-medium text-slate-700">
-                    SQL PostgreSQL
+                    SQL PostgreSQL editable
                   </label>
 
                   <textarea
