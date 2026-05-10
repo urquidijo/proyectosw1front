@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { AuthGuard } from '@/components/auth-guard';
-import { Navbar } from '@/components/navbar';
-import { getToken } from '@/app/lib/auth';
-import { getProjectRequest } from '@/app/lib/projects';
-import { Project } from '@/app/types/project';
-import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { AuthGuard } from "@/components/auth-guard";
+import { Navbar } from "@/components/navbar";
+import { getToken } from "@/app/lib/auth";
+import { getProjectRequest } from "@/app/lib/projects";
+import { Project } from "@/app/types/project";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -18,22 +18,22 @@ export default function ProjectDetailPage() {
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function loadProject() {
-      setError('');
+      setError("");
       setLoading(true);
 
       try {
         const token = getToken();
 
         if (!token) {
-          throw new Error('No existe una sesión activa');
+          throw new Error("No existe una sesión activa");
         }
 
         if (!projectId) {
-          throw new Error('Proyecto no válido');
+          throw new Error("Proyecto no válido");
         }
 
         const data = await getProjectRequest(token, projectId);
@@ -42,7 +42,7 @@ export default function ProjectDetailPage() {
         setError(
           error instanceof Error
             ? error.message
-            : 'Error al cargar el proyecto',
+            : "Error al cargar el proyecto",
         );
       } finally {
         setLoading(false);
@@ -85,7 +85,7 @@ export default function ProjectDetailPage() {
                 </h1>
 
                 <p className="mt-4 max-w-3xl text-slate-600">
-                  {project.description || 'Este proyecto no tiene descripción.'}
+                  {project.description || "Este proyecto no tiene descripción."}
                 </p>
 
                 <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -112,19 +112,20 @@ export default function ProjectDetailPage() {
               <section className="mt-8 grid gap-6 md:grid-cols-3">
                 <div className="rounded-2xl bg-white p-6 shadow-sm">
                   <h3 className="font-semibold text-slate-900">
-                    Constructor de esquema
+                    Importar estructura SQL
                   </h3>
 
                   <p className="mt-2 text-sm text-slate-500">
-                    Aquí agregaremos tablas, campos y relaciones.
+                    Pega o sube un script PostgreSQL para detectar tablas,
+                    columnas y relaciones.
                   </p>
 
-                  <button
-                    disabled
-                    className="mt-5 w-full rounded-lg bg-slate-200 px-4 py-2 text-sm font-medium text-slate-500"
+                  <Link
+                    href={`/projects/${project.id}/sql-imports`}
+                    className="mt-5 block w-full rounded-lg bg-slate-900 px-4 py-2 text-center text-sm font-medium text-white hover:bg-slate-700"
                   >
-                    Próximamente
-                  </button>
+                    Abrir importador
+                  </Link>
                 </div>
 
                 <div className="rounded-2xl bg-white p-6 shadow-sm">
@@ -133,15 +134,16 @@ export default function ProjectDetailPage() {
                   </h3>
 
                   <p className="mt-2 text-sm text-slate-500">
-                    Aquí generaremos datos sintéticos según el esquema.
+                    Genera registros sintéticos coherentes a partir de una
+                    estructura SQL válida.
                   </p>
 
-                  <button
-                    disabled
-                    className="mt-5 w-full rounded-lg bg-slate-200 px-4 py-2 text-sm font-medium text-slate-500"
+                  <Link
+                    href={`/projects/${project.id}/generations`}
+                    className="mt-5 block w-full rounded-lg bg-slate-900 px-4 py-2 text-center text-sm font-medium text-white hover:bg-slate-700"
                   >
-                    Próximamente
-                  </button>
+                    Abrir generador
+                  </Link>
                 </div>
 
                 <div className="rounded-2xl bg-white p-6 shadow-sm">
