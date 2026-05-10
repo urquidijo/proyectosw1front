@@ -1,24 +1,24 @@
-'use client';
+"use client";
 
-import { AuthGuard } from '@/components/auth-guard';
-import { Navbar } from '@/components/navbar';
-import { getToken } from '@/app/lib/auth';
+import { AuthGuard } from "@/components/auth-guard";
+import { Navbar } from "@/components/navbar";
+import { getToken } from "@/app/lib/auth";
 import {
   createGenerationRequest,
   downloadGenerationSqlRequest,
   getGenerationRequest,
   listGenerationsRequest,
-} from '@/app/lib/generations';
-import { listSqlImportsRequest } from '@/app/lib/sql-imports';
+} from "@/app/lib/generations";
+import { listSqlImportsRequest } from "@/app/lib/sql-imports";
 import {
   CreatedGenerationResponse,
   Generation,
   GeneratedRow,
-} from '@/app/types/generation';
-import { SqlImport } from '@/app/types/sql-import';
-import Link from 'next/link';
-import { useParams, useSearchParams } from 'next/navigation';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+} from "@/app/types/generation";
+import { SqlImport } from "@/app/types/sql-import";
+import Link from "next/link";
+import { useParams, useSearchParams } from "next/navigation";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 export default function GenerationsPage() {
   const params = useParams();
@@ -28,10 +28,11 @@ export default function GenerationsPage() {
     ? params.projectId[0]
     : params.projectId;
 
-  const sqlImportIdFromUrl = searchParams.get('sqlImportId');
+  const sqlImportIdFromUrl = searchParams.get("sqlImportId");
 
   const [validImports, setValidImports] = useState<SqlImport[]>([]);
-  const [selectedImportId, setSelectedImportId] = useState('');
+  const [selectedImportId, setSelectedImportId] = useState("");
+
   const [rowConfig, setRowConfig] = useState<Record<string, string>>({});
 
   const [generations, setGenerations] = useState<Generation[]>([]);
@@ -44,7 +45,7 @@ export default function GenerationsPage() {
   const [loadingGeneration, setLoadingGeneration] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const selectedImport = useMemo(
     () => validImports.find((item) => item.id === selectedImportId) ?? null,
@@ -63,25 +64,25 @@ export default function GenerationsPage() {
     const defaultConfig: Record<string, string> = {};
 
     selectedImport.schemaJson.tables.forEach((table) => {
-      defaultConfig[table.name] = '10';
+      defaultConfig[table.name] = "10";
     });
 
     setRowConfig(defaultConfig);
   }, [selectedImport]);
 
   async function loadInitialData() {
-    setError('');
+    setError("");
     setLoadingData(true);
 
     try {
       const token = getToken();
 
       if (!token) {
-        throw new Error('No existe una sesión activa');
+        throw new Error("No existe una sesión activa");
       }
 
       if (!projectId) {
-        throw new Error('Proyecto no válido');
+        throw new Error("Proyecto no válido");
       }
 
       const [importsData, generationsData] = await Promise.all([
@@ -90,7 +91,7 @@ export default function GenerationsPage() {
       ]);
 
       const onlyValidImports = importsData.filter(
-        (item) => item.status === 'VALID',
+        (item) => item.status === "VALID",
       );
 
       setValidImports(onlyValidImports);
@@ -101,15 +102,13 @@ export default function GenerationsPage() {
           (item) => item.id === sqlImportIdFromUrl,
         );
 
-        setSelectedImportId(
-          importFromUrl?.id ?? onlyValidImports[0].id,
-        );
+        setSelectedImportId(importFromUrl?.id ?? onlyValidImports[0].id);
       }
     } catch (error) {
       setError(
         error instanceof Error
           ? error.message
-          : 'Error al cargar los datos de generación',
+          : "Error al cargar los datos de generación",
       );
     } finally {
       setLoadingData(false);
@@ -125,10 +124,10 @@ export default function GenerationsPage() {
 
   async function handleGenerate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError('');
+    setError("");
 
     if (!selectedImport) {
-      setError('Debes seleccionar una importación SQL válida');
+      setError("Debes seleccionar una importación SQL válida");
       return;
     }
 
@@ -154,11 +153,11 @@ export default function GenerationsPage() {
       const token = getToken();
 
       if (!token) {
-        throw new Error('No existe una sesión activa');
+        throw new Error("No existe una sesión activa");
       }
 
       if (!projectId) {
-        throw new Error('Proyecto no válido');
+        throw new Error("Proyecto no válido");
       }
 
       const createdGeneration = await createGenerationRequest(
@@ -177,9 +176,7 @@ export default function GenerationsPage() {
       ]);
     } catch (error) {
       setError(
-        error instanceof Error
-          ? error.message
-          : 'Error al generar los datos',
+        error instanceof Error ? error.message : "Error al generar los datos",
       );
     } finally {
       setGenerating(false);
@@ -187,18 +184,18 @@ export default function GenerationsPage() {
   }
 
   async function handleSelectGeneration(generationId: string) {
-    setError('');
+    setError("");
     setLoadingGeneration(true);
 
     try {
       const token = getToken();
 
       if (!token) {
-        throw new Error('No existe una sesión activa');
+        throw new Error("No existe una sesión activa");
       }
 
       if (!projectId) {
-        throw new Error('Proyecto no válido');
+        throw new Error("Proyecto no válido");
       }
 
       const generation = await getGenerationRequest(
@@ -212,26 +209,44 @@ export default function GenerationsPage() {
       setError(
         error instanceof Error
           ? error.message
-          : 'Error al cargar la generación',
+          : "Error al cargar la generación",
       );
     } finally {
       setLoadingGeneration(false);
     }
   }
+  const selectedTables = useMemo(
+    () => selectedImport?.schemaJson?.tables ?? [],
+    [selectedImport],
+  );
+
+  const totalRequestedRows = useMemo(
+    () =>
+      Object.values(rowConfig).reduce((total, value) => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? total + parsed : total;
+      }, 0),
+    [rowConfig],
+  );
+
+  const generationTableCount = useMemo(
+    () => Object.keys(selectedGeneration?.previewJson ?? {}).length,
+    [selectedGeneration],
+  );
 
   async function handleDownload(generationId: string) {
-    setError('');
+    setError("");
     setDownloadingId(generationId);
 
     try {
       const token = getToken();
 
       if (!token) {
-        throw new Error('No existe una sesión activa');
+        throw new Error("No existe una sesión activa");
       }
 
       if (!projectId) {
-        throw new Error('Proyecto no válido');
+        throw new Error("Proyecto no válido");
       }
 
       const blob = await downloadGenerationSqlRequest(
@@ -241,7 +256,7 @@ export default function GenerationsPage() {
       );
 
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
 
       link.href = url;
       link.download = `syndata-${generationId}.sql`;
@@ -255,7 +270,7 @@ export default function GenerationsPage() {
       setError(
         error instanceof Error
           ? error.message
-          : 'Error al descargar el archivo SQL',
+          : "Error al descargar el archivo SQL",
       );
     } finally {
       setDownloadingId(null);
@@ -265,7 +280,7 @@ export default function GenerationsPage() {
   function renderPreviewTable(tableName: string, rows: GeneratedRow[]) {
     if (rows.length === 0) {
       return (
-        <div className="rounded-lg bg-slate-50 p-4 text-sm text-slate-500">
+        <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
           No hay filas para mostrar.
         </div>
       );
@@ -274,14 +289,14 @@ export default function GenerationsPage() {
     const columns = Object.keys(rows[0]);
 
     return (
-      <div className="overflow-x-auto rounded-xl border border-slate-200">
+      <div className="w-full max-w-full overflow-x-auto rounded-2xl border border-slate-200">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-50">
             <tr>
               {columns.map((column) => (
                 <th
                   key={column}
-                  className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-xs font-semibold uppercase text-slate-500"
+                  className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500"
                 >
                   {column}
                 </th>
@@ -293,14 +308,14 @@ export default function GenerationsPage() {
             {rows.map((row, rowIndex) => (
               <tr
                 key={`${tableName}-${rowIndex}`}
-                className="border-b border-slate-100 last:border-b-0"
+                className="border-b border-slate-100 transition hover:bg-slate-50 last:border-b-0"
               >
                 {columns.map((column) => (
                   <td
                     key={`${tableName}-${rowIndex}-${column}`}
                     className="whitespace-nowrap px-4 py-3 text-slate-700"
                   >
-                    {row[column] === null ? 'NULL' : String(row[column])}
+                    {row[column] === null ? "NULL" : String(row[column])}
                   </td>
                 ))}
               </tr>
@@ -319,270 +334,468 @@ export default function GenerationsPage() {
         <main className="mx-auto max-w-7xl px-6 py-10">
           <Link
             href={`/projects/${projectId}`}
-            className="text-sm font-medium text-slate-600 hover:text-slate-900"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
           >
-            ← Volver al proyecto
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              className="h-4 w-4"
+              aria-hidden="true"
+            >
+              <path
+                d="M15 18l-6-6 6-6"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Volver al proyecto
           </Link>
 
-          <section className="mt-6 rounded-2xl bg-white p-8 shadow-sm">
-            <p className="text-sm font-medium text-slate-500">
-              Generación sintética
-            </p>
+          <section className="relative mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+            <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-violet-100 blur-3xl" />
+            <div className="absolute -bottom-24 left-10 h-48 w-48 rounded-full bg-emerald-100 blur-3xl" />
 
-            <h1 className="mt-2 text-3xl font-bold text-slate-900">
-              Generar datos desde una estructura SQL
-            </h1>
+            <div className="relative">
+              <p className="text-sm font-semibold text-violet-600">
+                Generación sintética
+              </p>
 
-            <p className="mt-4 max-w-3xl text-slate-600">
-              Selecciona una importación SQL válida, define cuántos registros
-              necesitas por tabla y SynData generará datos coherentes respetando
-              las relaciones detectadas.
-            </p>
+              <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+                Generar datos desde una estructura SQL
+              </h1>
+
+              <p className="mt-4 max-w-3xl text-slate-600">
+                Selecciona una importación SQL válida, define cuántos registros
+                necesitas por tabla y SynData generará datos coherentes
+                respetando las relaciones y reglas detectadas.
+              </p>
+            </div>
           </section>
 
           {error && (
-            <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
             </div>
           )}
 
           {loadingData ? (
-            <section className="mt-8 rounded-2xl bg-white p-8 shadow-sm">
-              <p className="text-sm text-slate-500">
-                Cargando módulo de generación...
-              </p>
+            <section className="mt-8 rounded-3xl bg-white p-8 shadow-sm">
+              <div className="animate-pulse space-y-4">
+                <div className="h-4 w-40 rounded bg-slate-200" />
+                <div className="h-8 w-72 rounded bg-slate-200" />
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="h-24 rounded-2xl bg-slate-100" />
+                  <div className="h-24 rounded-2xl bg-slate-100" />
+                  <div className="h-24 rounded-2xl bg-slate-100" />
+                </div>
+              </div>
             </section>
           ) : validImports.length === 0 ? (
-            <section className="mt-8 rounded-2xl bg-white p-8 shadow-sm">
-              <h2 className="text-lg font-bold text-slate-900">
+            <section className="mt-8 rounded-3xl bg-white p-8 shadow-sm">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  className="h-7 w-7"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M12 3v12"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="m7 10 5 5 5-5"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M5 20h14"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </div>
+
+              <h2 className="mt-5 text-xl font-bold text-slate-900">
                 No hay importaciones SQL válidas
               </h2>
 
-              <p className="mt-2 text-sm text-slate-600">
+              <p className="mt-2 max-w-xl text-sm text-slate-600">
                 Primero debes analizar al menos un script SQL válido para poder
-                generar datos.
+                generar datos sintéticos.
               </p>
 
               <Link
                 href={`/projects/${projectId}/sql-imports`}
-                className="mt-5 inline-block rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+                className="mt-6 inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
               >
                 Ir al importador SQL
               </Link>
             </section>
           ) : (
             <>
-              <section className="mt-8 grid gap-6 xl:grid-cols-[420px_1fr]">
-                <div className="rounded-2xl bg-white p-6 shadow-sm">
-                  <h2 className="text-lg font-bold text-slate-900">
-                    Configurar generación
-                  </h2>
-
-                  <p className="mt-1 text-sm text-slate-500">
-                    Elige el esquema base y la cantidad de filas por tabla.
+              <section className="mt-8 grid gap-4 md:grid-cols-3">
+                <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Tablas del esquema
                   </p>
 
-                  <form onSubmit={handleGenerate} className="mt-6 space-y-5">
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-slate-700">
-                        Importación SQL
-                      </label>
-
-                      <select
-                        value={selectedImportId}
-                        onChange={(event) =>
-                          setSelectedImportId(event.target.value)
-                        }
-                        className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-slate-900 outline-none focus:border-slate-900"
-                      >
-                        {validImports.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {new Date(item.createdAt).toLocaleString()} -{' '}
-                            {item.schemaJson?.tables.length ?? 0} tablas
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {selectedImport?.schemaJson?.tables.map((table) => (
-                      <div key={table.name}>
-                        <label className="mb-2 block text-sm font-medium text-slate-700">
-                          Filas para {table.name}
-                        </label>
-
-                        <input
-                          type="number"
-                          min={1}
-                          max={1000}
-                          value={rowConfig[table.name] ?? ''}
-                          onChange={(event) =>
-                            handleRowConfigChange(
-                              table.name,
-                              event.target.value,
-                            )
-                          }
-                          className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-slate-900 placeholder:text-slate-400 outline-none focus:border-slate-900"
-                          required
-                        />
-                      </div>
-                    ))}
-
-                    <button
-                      type="submit"
-                      disabled={generating}
-                      className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {generating ? 'Generando...' : 'Generar datos'}
-                    </button>
-                  </form>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">
+                    {selectedTables.length}
+                  </p>
                 </div>
 
-                <div className="rounded-2xl bg-white p-6 shadow-sm">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">
-                        Vista previa
-                      </h2>
+                <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Filas solicitadas
+                  </p>
 
-                      <p className="mt-1 text-sm text-slate-500">
-                        Se muestran hasta 5 filas por tabla.
-                      </p>
-                    </div>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">
+                    {totalRequestedRows}
+                  </p>
+                </div>
 
-                    {selectedGeneration && (
-                      <button
-                        type="button"
-                        onClick={() => handleDownload(selectedGeneration.id)}
-                        disabled={downloadingId === selectedGeneration.id}
-                        className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {downloadingId === selectedGeneration.id
-                          ? 'Descargando...'
-                          : 'Descargar inserts.sql'}
-                      </button>
-                    )}
-                  </div>
+                <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Generaciones registradas
+                  </p>
 
-                  {!selectedGeneration ? (
-                    <div className="mt-6 rounded-xl border border-dashed border-slate-300 p-8 text-center">
-                      <p className="font-medium text-slate-800">
-                        Aún no generaste datos
-                      </p>
-
-                      <p className="mt-1 text-sm text-slate-500">
-                        Configura las cantidades y presiona “Generar datos”.
-                      </p>
-                    </div>
-                  ) : loadingGeneration ? (
-                    <p className="mt-6 text-sm text-slate-500">
-                      Cargando generación...
-                    </p>
-                  ) : (
-                    <div className="mt-6 space-y-6">
-                      {'orderedTables' in selectedGeneration && (
-                        <div className="rounded-xl bg-slate-50 p-4">
-                          <p className="text-xs font-semibold uppercase text-slate-400">
-                            Orden de generación
-                          </p>
-
-                          <p className="mt-2 text-sm text-slate-700">
-                            {selectedGeneration.orderedTables.join(' → ')}
-                          </p>
-                        </div>
-                      )}
-
-                      {Object.entries(selectedGeneration.previewJson).map(
-                        ([tableName, rows]) => (
-                          <article key={tableName}>
-                            <div className="mb-3 flex items-center justify-between">
-                              <h3 className="font-semibold text-slate-900">
-                                {tableName}
-                              </h3>
-
-                              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-                                {rows.length} filas en vista previa
-                              </span>
-                            </div>
-
-                            {renderPreviewTable(tableName, rows)}
-                          </article>
-                        ),
-                      )}
-                    </div>
-                  )}
+                  <p className="mt-2 text-3xl font-bold text-slate-900">
+                    {generations.length}
+                  </p>
                 </div>
               </section>
 
-              <section className="mt-8 rounded-2xl bg-white p-6 shadow-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-900">
-                      Historial de generaciones
-                    </h2>
+              <section className="mt-8 grid min-w-0 gap-6 xl:grid-cols-[390px_minmax(0,1fr)]">
+                <aside className="xl:sticky xl:top-24 xl:self-start">
+                  <div className="rounded-3xl bg-white p-6 shadow-sm">
+                    <div>
+                      <h2 className="text-lg font-bold text-slate-900">
+                        Configurar generación
+                      </h2>
 
-                    <p className="mt-1 text-sm text-slate-500">
-                      Archivos SQL generados anteriormente en este proyecto.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-6">
-                  {generations.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center">
-                      <p className="text-sm text-slate-500">
-                        Aún no hay generaciones registradas.
+                      <p className="mt-1 text-sm text-slate-500">
+                        Elige el esquema base y la cantidad de filas por tabla.
                       </p>
                     </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {generations.map((generation) => (
-                        <article
-                          key={generation.id}
-                          className="rounded-xl border border-slate-200 p-4"
+
+                    <form onSubmit={handleGenerate} className="mt-6 space-y-5">
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700">
+                          Importación SQL
+                        </label>
+
+                        <select
+                          value={selectedImportId}
+                          onChange={(event) =>
+                            setSelectedImportId(event.target.value)
+                          }
+                          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-slate-900"
                         >
-                          <div className="flex flex-wrap items-center justify-between gap-4">
-                            <div>
-                              <p className="font-medium text-slate-900">
-                                Generación del{' '}
-                                {new Date(generation.createdAt).toLocaleString()}
-                              </p>
+                          {validImports.map((item) => (
+                            <option key={item.id} value={item.id}>
+                              {new Date(item.createdAt).toLocaleString()} -{" "}
+                              {item.schemaJson?.tables.length ?? 0} tablas
+                            </option>
+                          ))}
+                        </select>
+                      </div>
 
-                              <p className="mt-1 text-sm text-slate-500">
-                                {Object.entries(generation.rowConfig)
-                                  .map(([table, count]) => `${table}: ${count}`)
-                                  .join(' · ')}
-                              </p>
-                            </div>
+                      <div className="max-h-110 space-y-4 overflow-y-auto pr-1">
+                        {selectedTables.map((table) => (
+                          <div
+                            key={table.name}
+                            className="rounded-2xl border border-slate-200 p-4"
+                          >
+                            <label className="block text-sm font-semibold text-slate-800">
+                              {table.name}
+                            </label>
 
-                            <div className="flex gap-2">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleSelectGeneration(generation.id)
-                                }
-                                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-                              >
-                                Ver
-                              </button>
+                            <p className="mt-1 text-xs text-slate-500">
+                              Cantidad de filas a generar
+                            </p>
 
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleDownload(generation.id)
-                                }
-                                disabled={downloadingId === generation.id}
-                                className="rounded-lg border border-emerald-200 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
-                              >
-                                {downloadingId === generation.id
-                                  ? 'Descargando...'
-                                  : 'Descargar'}
-                              </button>
-                            </div>
+                            <input
+                              type="number"
+                              min={1}
+                              max={1000}
+                              value={rowConfig[table.name] ?? ""}
+                              onChange={(event) =>
+                                handleRowConfigChange(
+                                  table.name,
+                                  event.target.value,
+                                )
+                              }
+                              className="mt-3 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-slate-900"
+                              required
+                            />
                           </div>
-                        </article>
-                      ))}
+                        ))}
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={generating}
+                        className="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {generating ? "Generando..." : "Generar datos"}
+                      </button>
+                    </form>
+                  </div>
+                </aside>
+
+                <div className="min-w-0 space-y-6">
+                  <section className="min-w-0 overflow-hidden rounded-3xl bg-white p-6 shadow-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div>
+                        <h2 className="text-lg font-bold text-slate-900">
+                          Vista previa
+                        </h2>
+
+                        <p className="mt-1 text-sm text-slate-500">
+                          Se muestran hasta 5 filas por tabla generada.
+                        </p>
+                      </div>
+
+                      {selectedGeneration && (
+                        <button
+                          type="button"
+                          onClick={() => handleDownload(selectedGeneration.id)}
+                          disabled={downloadingId === selectedGeneration.id}
+                          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            className="h-4 w-4"
+                            aria-hidden="true"
+                          >
+                            <path
+                              d="M12 3v12"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                            />
+                            <path
+                              d="m7 10 5 5 5-5"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                            <path
+                              d="M5 20h14"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+
+                          {downloadingId === selectedGeneration.id
+                            ? "Descargando..."
+                            : "Descargar inserts.sql"}
+                        </button>
+                      )}
                     </div>
-                  )}
+
+                    {!selectedGeneration ? (
+                      <div className="mt-6 rounded-2xl border border-dashed border-slate-300 p-8 text-center">
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            className="h-6 w-6"
+                            aria-hidden="true"
+                          >
+                            <path
+                              d="M4 7h16"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                            />
+                            <path
+                              d="M7 4v6"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                            />
+                            <path
+                              d="M17 4v6"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                            />
+                            <rect
+                              x="4"
+                              y="7"
+                              width="16"
+                              height="13"
+                              rx="2"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                            />
+                          </svg>
+                        </div>
+
+                        <p className="mt-4 font-medium text-slate-800">
+                          Aún no generaste datos
+                        </p>
+
+                        <p className="mt-1 text-sm text-slate-500">
+                          Configura las cantidades y presiona “Generar datos”.
+                        </p>
+                      </div>
+                    ) : loadingGeneration ? (
+                      <p className="mt-6 text-sm text-slate-500">
+                        Cargando generación...
+                      </p>
+                    ) : (
+                      <div className="mt-6 space-y-5">
+                        {"orderedTables" in selectedGeneration && (
+                          <div className="rounded-2xl bg-slate-50 p-4">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                              Orden de generación
+                            </p>
+
+                            <p className="mt-2 text-sm text-slate-700">
+                              {selectedGeneration.orderedTables.join(" → ")}
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap gap-2 text-xs">
+                          <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
+                            {generationTableCount} tablas generadas
+                          </span>
+
+                          <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
+                            Vista previa de hasta 5 filas por tabla
+                          </span>
+                        </div>
+
+                        {Object.entries(selectedGeneration.previewJson).map(
+                          ([tableName, rows]) => (
+                            <details
+                              key={tableName}
+                              className="group min-w-0 rounded-2xl border border-slate-200 p-4"
+                              open
+                            >
+                              <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+                                <div>
+                                  <h3 className="font-semibold text-slate-900">
+                                    {tableName}
+                                  </h3>
+
+                                  <p className="mt-1 text-xs text-slate-500">
+                                    {rows.length} filas en vista previa
+                                  </p>
+                                </div>
+
+                                <span className="text-xs font-medium text-slate-500 group-open:hidden">
+                                  Ver
+                                </span>
+
+                                <span className="hidden text-xs font-medium text-slate-500 group-open:inline">
+                                  Ocultar
+                                </span>
+                              </summary>
+
+                              <div className="mt-4">
+                                {renderPreviewTable(tableName, rows)}
+                              </div>
+                            </details>
+                          ),
+                        )}
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="rounded-3xl bg-white p-6 shadow-sm">
+                    <div>
+                      <h2 className="text-lg font-bold text-slate-900">
+                        Historial de generaciones
+                      </h2>
+
+                      <p className="mt-1 text-sm text-slate-500">
+                        Archivos SQL generados anteriormente en este proyecto.
+                      </p>
+                    </div>
+
+                    <div className="mt-6">
+                      {generations.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-center">
+                          <p className="text-sm text-slate-500">
+                            Aún no hay generaciones registradas.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {generations.map((generation) => (
+                            <article
+                              key={generation.id}
+                              className="rounded-2xl border border-slate-200 p-4 transition hover:border-slate-300 hover:bg-slate-50"
+                            >
+                              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                                <div className="min-w-0">
+                                  <p className="font-semibold text-slate-900">
+                                    Generación del{" "}
+                                    {new Date(
+                                      generation.createdAt,
+                                    ).toLocaleString()}
+                                  </p>
+
+                                  <div className="mt-3 flex flex-wrap gap-2">
+                                    {Object.entries(generation.rowConfig).map(
+                                      ([table, count]) => (
+                                        <span
+                                          key={`${generation.id}-${table}`}
+                                          className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600"
+                                        >
+                                          {table}: {String(count)}
+                                        </span>
+                                      ),
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="flex shrink-0 gap-2 lg:justify-self-end">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleSelectGeneration(generation.id)
+                                    }
+                                    className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+                                  >
+                                    Ver
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleDownload(generation.id)
+                                    }
+                                    disabled={downloadingId === generation.id}
+                                    className="rounded-xl border border-emerald-200 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    {downloadingId === generation.id
+                                      ? "Descargando..."
+                                      : "Descargar"}
+                                  </button>
+                                </div>
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </section>
                 </div>
               </section>
             </>
