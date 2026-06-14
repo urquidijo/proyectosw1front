@@ -1,7 +1,5 @@
 "use client";
 
-import { AuthGuard } from "@/components/auth-guard";
-import { Navbar } from "@/components/navbar";
 import { getToken } from "@/app/lib/auth";
 import {
   createGenerationRequest,
@@ -16,9 +14,14 @@ import {
   GeneratedRow,
 } from "@/app/types/generation";
 import { SqlImport } from "@/app/types/sql-import";
+import { AuthGuard } from "@/components/auth-guard";
+import { Navbar } from "@/components/navbar";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { GenerationRulesPanel } from "./components/generation-rules-panel";
+import { useGenerationRules } from "./hooks/use-generation-rules";
+import { normalizeRowConfig } from "./utils/generation-rules.utils";
 
 export default function GenerationsPage() {
   const params = useParams();
@@ -52,23 +55,39 @@ export default function GenerationsPage() {
     [validImports, selectedImportId],
   );
 
+  const selectedTables = useMemo(
+    () => selectedImport?.schemaJson?.tables ?? [],
+    [selectedImport],
+  );
+
+  const generationRules = useGenerationRules({
+    projectId,
+    selectedImport,
+    selectedTables,
+    rowConfig,
+    setRowConfig,
+    setError,
+  });
+
+  const totalRequestedRows = useMemo(
+    () =>
+      Object.values(rowConfig).reduce((total, value) => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? total + parsed : total;
+      }, 0),
+    [rowConfig],
+  );
+
+  const generationTableCount = useMemo(
+    () => Object.keys(selectedGeneration?.previewJson ?? {}).length,
+    [selectedGeneration],
+  );
+
   useEffect(() => {
     if (projectId) {
       loadInitialData();
     }
   }, [projectId]);
-
-  useEffect(() => {
-    if (!selectedImport?.schemaJson?.tables) return;
-
-    const defaultConfig: Record<string, string> = {};
-
-    selectedImport.schemaJson.tables.forEach((table) => {
-      defaultConfig[table.name] = "10";
-    });
-
-    setRowConfig(defaultConfig);
-  }, [selectedImport]);
 
   async function loadInitialData() {
     setError("");
@@ -115,13 +134,6 @@ export default function GenerationsPage() {
     }
   }
 
-  function handleRowConfigChange(tableName: string, value: string) {
-    setRowConfig((currentConfig) => ({
-      ...currentConfig,
-      [tableName]: value,
-    }));
-  }
-
   async function handleGenerate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
@@ -131,20 +143,11 @@ export default function GenerationsPage() {
       return;
     }
 
-    const normalizedRowConfig: Record<string, number> = {};
+    const normalizedRowConfig = normalizeRowConfig(selectedTables, rowConfig);
 
-    for (const table of selectedImport.schemaJson?.tables ?? []) {
-      const rawValue = rowConfig[table.name];
-      const value = Number(rawValue);
-
-      if (!Number.isInteger(value) || value < 1) {
-        setError(
-          `Debes indicar una cantidad entera mayor a 0 para la tabla "${table.name}"`,
-        );
-        return;
-      }
-
-      normalizedRowConfig[table.name] = value;
+    if (!normalizedRowConfig.ok) {
+      setError(normalizedRowConfig.error);
+      return;
     }
 
     setGenerating(true);
@@ -165,7 +168,15 @@ export default function GenerationsPage() {
         projectId,
         {
           sqlImportId: selectedImport.id,
-          rowConfig: normalizedRowConfig,
+          rowConfig: normalizedRowConfig.value,
+          rules: generationRules.useAdvancedRules
+            ? generationRules.getRulesForSubmit()
+            : undefined,
+          ruleSetId:
+            generationRules.useAdvancedRules &&
+            generationRules.selectedRuleSetId
+              ? generationRules.selectedRuleSetId
+              : undefined,
         },
       );
 
@@ -215,24 +226,6 @@ export default function GenerationsPage() {
       setLoadingGeneration(false);
     }
   }
-  const selectedTables = useMemo(
-    () => selectedImport?.schemaJson?.tables ?? [],
-    [selectedImport],
-  );
-
-  const totalRequestedRows = useMemo(
-    () =>
-      Object.values(rowConfig).reduce((total, value) => {
-        const parsed = Number(value);
-        return Number.isFinite(parsed) ? total + parsed : total;
-      }, 0),
-    [rowConfig],
-  );
-
-  const generationTableCount = useMemo(
-    () => Object.keys(selectedGeneration?.previewJson ?? {}).length,
-    [selectedGeneration],
-  );
 
   async function handleDownload(generationId: string) {
     setError("");
@@ -369,7 +362,8 @@ export default function GenerationsPage() {
               <p className="mt-4 max-w-3xl text-slate-600">
                 Selecciona una importación SQL válida, define cuántos registros
                 necesitas por tabla y SynData generará datos coherentes
-                respetando las relaciones y reglas detectadas.
+                respetando las relaciones, reglas detectadas y reglas
+                personalizadas.
               </p>
             </div>
           </section>
@@ -482,7 +476,8 @@ export default function GenerationsPage() {
                       </h2>
 
                       <p className="mt-1 text-sm text-slate-500">
-                        Elige el esquema base y la cantidad de filas por tabla.
+                        Elige el esquema base, la cantidad de filas y las reglas
+                        personalizadas por columna.
                       </p>
                     </div>
 
@@ -528,7 +523,7 @@ export default function GenerationsPage() {
                               max={1000}
                               value={rowConfig[table.name] ?? ""}
                               onChange={(event) =>
-                                handleRowConfigChange(
+                                generationRules.updateTableRowCount(
                                   table.name,
                                   event.target.value,
                                 )
@@ -539,6 +534,23 @@ export default function GenerationsPage() {
                           </div>
                         ))}
                       </div>
+
+                      <GenerationRulesPanel
+                        selectedTables={selectedTables}
+                        useAdvancedRules={generationRules.useAdvancedRules}
+                        onUseAdvancedRulesChange={
+                          generationRules.setUseAdvancedRules
+                        }
+                        rulesJson={generationRules.rulesJson}
+                        ruleSets={generationRules.ruleSets}
+                        selectedRuleSetId={generationRules.selectedRuleSetId}
+                        ruleSetName={generationRules.ruleSetName}
+                        onRuleSetNameChange={generationRules.setRuleSetName}
+                        savingRules={generationRules.savingRules}
+                        onRuleSetChange={generationRules.handleRuleSetChange}
+                        onColumnRuleChange={generationRules.updateColumnRule}
+                        onSaveRules={generationRules.handleSaveRules}
+                      />
 
                       <button
                         type="submit"
@@ -658,17 +670,18 @@ export default function GenerationsPage() {
                       </p>
                     ) : (
                       <div className="mt-6 space-y-5">
-                        {"orderedTables" in selectedGeneration && (
-                          <div className="rounded-2xl bg-slate-50 p-4">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                              Orden de generación
-                            </p>
+                        {Array.isArray(selectedGeneration.orderedTables) &&
+                          selectedGeneration.orderedTables.length > 0 && (
+                            <div className="rounded-2xl bg-slate-50 p-4">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                Orden de generación
+                              </p>
 
-                            <p className="mt-2 text-sm text-slate-700">
-                              {selectedGeneration.orderedTables.join(" → ")}
-                            </p>
-                          </div>
-                        )}
+                              <p className="mt-2 text-sm text-slate-700">
+                                {selectedGeneration.orderedTables.join(" → ")}
+                              </p>
+                            </div>
+                          )}
 
                         <div className="flex flex-wrap gap-2 text-xs">
                           <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
@@ -678,6 +691,12 @@ export default function GenerationsPage() {
                           <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
                             Vista previa de hasta 5 filas por tabla
                           </span>
+
+                          {selectedGeneration.generationRuleSetId && (
+                            <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">
+                              Reglas personalizadas aplicadas
+                            </span>
+                          )}
                         </div>
 
                         {Object.entries(selectedGeneration.previewJson).map(
@@ -761,6 +780,12 @@ export default function GenerationsPage() {
                                           {table}: {String(count)}
                                         </span>
                                       ),
+                                    )}
+
+                                    {generation.generationRuleSetId && (
+                                      <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-medium text-violet-700">
+                                        Con reglas
+                                      </span>
                                     )}
                                   </div>
                                 </div>

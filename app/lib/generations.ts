@@ -19,9 +19,9 @@ export async function createGenerationRequest(
   return apiFetch<CreatedGenerationResponse>(
     `/projects/${projectId}/generations`,
     {
-      method: 'POST',
-      token,
+      method: "POST",
       body: payload,
+      token,
     },
   );
 }
