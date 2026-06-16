@@ -19,12 +19,20 @@ export type Generation = {
   sqlImportId: string;
   generationRuleSetId?: string | null;
   rowConfig: Record<string, number>;
-  previewJson: PreviewJson;
-  validationJson?: unknown;
-  orderedTables?: string[];
+  previewJson: Record<string, GeneratedRow[]>;
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  progress: number;
+  error?: string | null;
+  region?: string | null;
   createdAt: string;
   updatedAt: string;
 };
 export type CreatedGenerationResponse = Generation & {
   orderedTables: string[];
+};
+
+export type CreateGenerationPayload = {
+  sqlImportId: string;
+  rowConfig: Record<string, number>;
+  region?: string;
 };
