@@ -16,6 +16,7 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import {
   analyzeGenerationPlanRequest,
   getGenerationPlanRequest,
+  PlanLanguage,
 } from "@/app/lib/generation-plans";
 import { GenerationPlan, PlanRule } from "@/app/types/generation-plan";
 import { generateSqlSchemaRequest } from "@/app/lib/sql-schema-generator";
@@ -60,6 +61,7 @@ export default function SqlImportsPage() {
 
   const [analyzingPlan, setAnalyzingPlan] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState(false);
+  const [planLanguage, setPlanLanguage] = useState<PlanLanguage>("es");
   type SqlInputMode = "manual" | "file" | "ai";
 
   const [sqlInputMode, setSqlInputMode] = useState<SqlInputMode>("manual");
@@ -254,6 +256,7 @@ export default function SqlImportsPage() {
         token,
         projectId,
         selectedImport.id,
+        planLanguage,
       );
 
       setGenerationPlan(plan);
@@ -763,7 +766,45 @@ export default function SqlImportsPage() {
                   </div>
                 ) : (
                   <>
-                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <div className="mt-5">
+                      <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Idioma de los datos
+                      </label>
+
+                      <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
+                        <button
+                          type="button"
+                          onClick={() => setPlanLanguage("es")}
+                          className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${
+                            planLanguage === "es"
+                              ? "bg-white text-slate-900 shadow-sm"
+                              : "text-slate-500 hover:text-slate-700"
+                          }`}
+                        >
+                          Español
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setPlanLanguage("en")}
+                          className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${
+                            planLanguage === "en"
+                              ? "bg-white text-slate-900 shadow-sm"
+                              : "text-slate-500 hover:text-slate-700"
+                          }`}
+                        >
+                          English
+                        </button>
+                      </div>
+
+                      <p className="mt-2 text-xs text-slate-500">
+                        Define el idioma de los valores de dominio (categorías,
+                        tipos, productos). Recuerda elegir una región acorde al
+                        generar.
+                      </p>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       <button
                         type="button"
                         onClick={handleAnalyzeGenerationPlan}

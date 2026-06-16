@@ -8,6 +8,10 @@ export type Generation = {
   sqlImportId: string;
   rowConfig: Record<string, number>;
   previewJson: Record<string, GeneratedRow[]>;
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  progress: number;
+  error?: string | null;
+  region?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -19,4 +23,5 @@ export type CreatedGenerationResponse = Generation & {
 export type CreateGenerationPayload = {
   sqlImportId: string;
   rowConfig: Record<string, number>;
+  region?: string;
 };

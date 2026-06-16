@@ -8,6 +8,8 @@ import {
   downloadGenerationSqlRequest,
   getGenerationRequest,
   listGenerationsRequest,
+  getGenerationStatusRequest,
+  suggestVolumesRequest,
 } from "@/app/lib/generations";
 import { listSqlImportsRequest } from "@/app/lib/sql-imports";
 import {
@@ -46,6 +48,112 @@ export default function GenerationsPage() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const [error, setError] = useState("");
+  const [region, setRegion] = useState("BOLIVIA");
+  const [suggesting, setSuggesting] = useState(false);
+
+  useEffect(() => {
+    if (!selectedGeneration || !projectId) return;
+    if (
+      selectedGeneration.status !== "PENDING" &&
+      selectedGeneration.status !== "PROCESSING"
+    )
+      return;
+
+    let active = true;
+    const interval = setInterval(async () => {
+      try {
+        const token = getToken();
+        if (!token) return;
+
+        const statusData = await getGenerationStatusRequest(
+          token,
+          projectId,
+          selectedGeneration.id,
+        );
+
+        if (!active) return;
+
+        setSelectedGeneration((current) => {
+          if (!current || current.id !== selectedGeneration.id) return current;
+          return {
+            ...current,
+            status: statusData.status as any,
+            progress: statusData.progress,
+            error: statusData.error,
+          };
+        });
+
+        if (
+          statusData.status === "COMPLETED" ||
+          statusData.status === "FAILED"
+        ) {
+          clearInterval(interval);
+          // Refresh list
+          const latestGenerations = await listGenerationsRequest(
+            token,
+            projectId,
+          );
+          setGenerations(latestGenerations);
+
+          // If completed, fetch full details to render preview
+          if (statusData.status === "COMPLETED") {
+            const fullGen = await getGenerationRequest(
+              token,
+              projectId,
+              selectedGeneration.id,
+            );
+            setSelectedGeneration(fullGen);
+          }
+        }
+      } catch (err) {
+        console.error("Error polling generation status:", err);
+      }
+    }, 1500);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [selectedGeneration?.id, selectedGeneration?.status, projectId]);
+
+  async function handleSuggestVolumes() {
+    if (!selectedImportId) return;
+    setError("");
+    setSuggesting(true);
+
+    try {
+      const token = getToken();
+
+      if (!token) {
+        throw new Error("No existe una sesión activa");
+      }
+
+      if (!projectId) {
+        throw new Error("Proyecto no válido");
+      }
+
+      const suggestions = await suggestVolumesRequest(
+        token,
+        projectId,
+        selectedImportId,
+      );
+
+      const newConfig: Record<string, string> = {};
+      Object.entries(suggestions).forEach(([table, val]) => {
+        newConfig[table] = String(val);
+      });
+
+      setRowConfig(newConfig);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Error al obtener sugerencias de volumen",
+      );
+    } finally {
+      setSuggesting(false);
+    }
+  }
 
   const selectedImport = useMemo(
     () => validImports.find((item) => item.id === selectedImportId) ?? null,
@@ -166,6 +274,7 @@ export default function GenerationsPage() {
         {
           sqlImportId: selectedImport.id,
           rowConfig: normalizedRowConfig,
+          region,
         },
       );
 
@@ -476,14 +585,25 @@ export default function GenerationsPage() {
               <section className="mt-8 grid min-w-0 gap-6 xl:grid-cols-[390px_minmax(0,1fr)]">
                 <aside className="xl:sticky xl:top-24 xl:self-start">
                   <div className="rounded-3xl bg-white p-6 shadow-sm">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">
-                        Configurar generación
-                      </h2>
+                    <div className="flex justify-between items-start gap-4">
+                      <div>
+                        <h2 className="text-lg font-bold text-slate-900">
+                          Configurar generación
+                        </h2>
 
-                      <p className="mt-1 text-sm text-slate-500">
-                        Elige el esquema base y la cantidad de filas por tabla.
-                      </p>
+                        <p className="mt-1 text-sm text-slate-500">
+                          Elige el esquema base, región e introduce filas.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleSuggestVolumes}
+                        disabled={suggesting || !selectedImportId}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-violet-700 hover:text-violet-900 border border-violet-200 hover:border-violet-300 bg-violet-50 hover:bg-violet-100 rounded-xl px-3 py-2 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {suggesting ? "Sugiriendo..." : "Sugerir volúmenes"}
+                      </button>
                     </div>
 
                     <form onSubmit={handleGenerate} className="mt-6 space-y-5">
@@ -508,6 +628,31 @@ export default function GenerationsPage() {
                         </select>
                       </div>
 
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-slate-700">
+                          Región de Localización
+                        </label>
+
+                        <select
+                          value={region}
+                          onChange={(event) => setRegion(event.target.value)}
+                          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-slate-900"
+                        >
+                          <optgroup label="Español">
+                            <option value="BOLIVIA">Bolivia (Auténtico: ciudades, nombres, etc.)</option>
+                            <option value="ARGENTINA">Argentina</option>
+                            <option value="CHILE">Chile</option>
+                            <option value="COLOMBIA">Colombia</option>
+                            <option value="MEXICO">México</option>
+                            <option value="ESPAÑA">España</option>
+                            <option value="GENERIC">Genérico (Español estándar)</option>
+                          </optgroup>
+                          <optgroup label="English">
+                            <option value="USA">Estados Unidos (English data)</option>
+                          </optgroup>
+                        </select>
+                      </div>
+
                       <div className="max-h-110 space-y-4 overflow-y-auto pr-1">
                         {selectedTables.map((table) => (
                           <div
@@ -525,7 +670,7 @@ export default function GenerationsPage() {
                             <input
                               type="number"
                               min={1}
-                              max={1000}
+                              max={10000}
                               value={rowConfig[table.name] ?? ""}
                               onChange={(event) =>
                                 handleRowConfigChange(
@@ -656,6 +801,36 @@ export default function GenerationsPage() {
                       <p className="mt-6 text-sm text-slate-500">
                         Cargando generación...
                       </p>
+                    ) : selectedGeneration.status === "PENDING" ||
+                      selectedGeneration.status === "PROCESSING" ? (
+                      <div className="mt-6 rounded-2xl border border-slate-200 p-6 bg-slate-50 text-center">
+                        <div className="flex justify-between text-sm font-semibold text-slate-700 mb-2">
+                          <span>
+                            {selectedGeneration.status === "PENDING"
+                              ? "En cola de procesamiento..."
+                              : "Generando datos sintéticos..."}
+                          </span>
+                          <span>{selectedGeneration.progress}%</span>
+                        </div>
+                        <div className="w-full bg-slate-200 rounded-full h-3.5 mb-4">
+                          <div
+                            className="bg-violet-600 h-3.5 rounded-full transition-all duration-300"
+                            style={{ width: `${selectedGeneration.progress}%` }}
+                          />
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          Esto puede tardar unos segundos según la cantidad de datos solicitada. Por favor, no cierres la ventana.
+                        </p>
+                      </div>
+                    ) : selectedGeneration.status === "FAILED" ? (
+                      <div className="mt-6 rounded-2xl border border-red-200 p-6 bg-red-50 text-center">
+                        <p className="font-semibold text-red-800">
+                          La generación falló
+                        </p>
+                        <p className="text-sm text-red-600 mt-2">
+                          {selectedGeneration.error || "Error desconocido"}
+                        </p>
+                      </div>
                     ) : (
                       <div className="mt-6 space-y-5">
                         {"orderedTables" in selectedGeneration && (
