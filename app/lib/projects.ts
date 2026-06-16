@@ -32,3 +32,25 @@ export async function deleteProjectRequest(token: string, projectId: string) {
     token,
   });
 }
+
+export async function assignProjectToWorkspaceRequest(
+  token: string,
+  projectId: string,
+  workspaceId: string | null
+): Promise<void> {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+  const response = await fetch(`${API_URL}/projects/${projectId}/workspace`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ workspaceId }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Error al asignar workspace');
+  }
+}

@@ -38,6 +38,12 @@ export default function RegisterPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
       <section className="w-full max-w-md rounded-2xl bg-white p-8 shadow-sm">
+        <div className="mb-6 flex justify-start">
+          <Link href="/" className="text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors">
+            &larr; Volver al inicio
+          </Link>
+        </div>
+
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-slate-900">Crear cuenta</h1>
           <p className="mt-2 text-sm text-slate-500">
