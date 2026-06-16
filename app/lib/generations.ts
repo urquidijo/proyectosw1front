@@ -19,9 +19,9 @@ export async function createGenerationRequest(
   return apiFetch<CreatedGenerationResponse>(
     `/projects/${projectId}/generations`,
     {
-      method: 'POST',
-      token,
+      method: "POST",
       body: payload,
+      token,
     },
   );
 }
@@ -43,6 +43,34 @@ export async function getGenerationRequest(
 ) {
   return apiFetch<Generation>(
     `/projects/${projectId}/generations/${generationId}`,
+    {
+      method: 'GET',
+      token,
+    },
+  );
+}
+
+export async function getGenerationStatusRequest(
+  token: string,
+  projectId: string,
+  generationId: string,
+) {
+  return apiFetch<{ status: string; progress: number; error: string | null }>(
+    `/projects/${projectId}/generations/${generationId}/status`,
+    {
+      method: 'GET',
+      token,
+    },
+  );
+}
+
+export async function suggestVolumesRequest(
+  token: string,
+  projectId: string,
+  importId: string,
+) {
+  return apiFetch<Record<string, number>>(
+    `/projects/${projectId}/generations/suggest-volumes/${importId}`,
     {
       method: 'GET',
       token,
