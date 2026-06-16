@@ -8,9 +8,10 @@ export type PreviewJson = Record<string, GeneratedRow[]>;
 
 export type CreateGenerationPayload = {
   sqlImportId: string;
-  rowConfig?: Record<string, number>;
+  rowConfig: Record<string, number>;
   ruleSetId?: string;
   rules?: GenerationRulesJson;
+  region?: string;
 };
 
 export type Generation = {
@@ -26,13 +27,9 @@ export type Generation = {
   region?: string | null;
   createdAt: string;
   updatedAt: string;
-};
-export type CreatedGenerationResponse = Generation & {
-  orderedTables: string[];
+  orderedTables?: string[];
 };
 
-export type CreateGenerationPayload = {
-  sqlImportId: string;
-  rowConfig: Record<string, number>;
-  region?: string;
+export type CreatedGenerationResponse = Generation & {
+  orderedTables: string[];
 };

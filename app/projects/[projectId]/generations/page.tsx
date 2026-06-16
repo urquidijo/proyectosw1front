@@ -276,7 +276,7 @@ export default function GenerationsPage() {
         projectId,
         {
           sqlImportId: selectedImport.id,
-          rowConfig: normalizedRowConfig,
+          rowConfig: normalizedRowConfig.value,
           region,
         },
       );
