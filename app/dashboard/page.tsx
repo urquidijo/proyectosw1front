@@ -137,8 +137,13 @@ export default function DashboardPage() {
           </section>
 
           {error && (
-            <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
+            <div className="mt-6 flex flex-col gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <p>{error}</p>
+              {(error.toLowerCase().includes("plan") || error.toLowerCase().includes("límite")) && (
+                <Link href="/plans" className="font-semibold underline hover:text-red-900 w-fit">
+                  Ver planes y suscripciones
+                </Link>
+              )}
             </div>
           )}
 

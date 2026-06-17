@@ -52,22 +52,26 @@ export function Navbar() {
 
   const NavLinks = () => (
     <>
-      <Link
-        href="/dashboard"
-        className={`px-3 py-2 rounded-lg text-sm font-semibold transition ${
-          pathname === '/dashboard' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-        }`}
-      >
-        Proyectos
-      </Link>
-      <Link
-        href="/groups"
-        className={`px-3 py-2 rounded-lg text-sm font-semibold transition ${
-          pathname === '/groups' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-        }`}
-      >
-        Mis Grupos
-      </Link>
+      {user?.role !== 'SUPERADMIN' && (
+        <>
+          <Link
+            href="/dashboard"
+            className={`px-3 py-2 rounded-lg text-sm font-semibold transition ${
+              pathname === '/dashboard' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+            }`}
+          >
+            Proyectos
+          </Link>
+          <Link
+            href="/groups"
+            className={`px-3 py-2 rounded-lg text-sm font-semibold transition ${
+              pathname === '/groups' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+            }`}
+          >
+            Mis Grupos
+          </Link>
+        </>
+      )}
       {user?.role === 'SUPERADMIN' && (
         <Link
           href="/admin"
@@ -113,9 +117,14 @@ export function Navbar() {
           {user ? (
             <div className="hidden md:flex items-center gap-4">
               <div className="flex items-center gap-3 text-right">
-                <div>
+                <div className="flex flex-col items-end">
                   <p className="text-sm font-semibold text-slate-800">{user.name}</p>
                   <p className="text-xs text-slate-500">{user.email}</p>
+                  {user.role !== 'SUPERADMIN' && (
+                    <Link href="/plans" className="mt-0.5 inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20 hover:bg-emerald-100 transition-colors">
+                      {user.plan?.name || "Plan Gratuito"}
+                    </Link>
+                  )}
                 </div>
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-100 text-sm font-bold text-violet-700">
                   {getInitials(user.name)}
@@ -132,6 +141,7 @@ export function Navbar() {
             </div>
           ) : (
             <div className="hidden md:flex items-center gap-4">
+              <Link href="/plans" className="text-sm font-medium text-slate-600 hover:text-slate-900">Planes</Link>
               <Link href="/login" className="text-sm font-medium text-slate-600 hover:text-slate-900">Iniciar sesión</Link>
               <Link href="/register" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">Comenzar gratis</Link>
             </div>
@@ -163,6 +173,11 @@ export function Navbar() {
                 <div>
                   <p className="text-sm font-semibold text-slate-800">{user.name}</p>
                   <p className="text-xs text-slate-500">{user.email}</p>
+                  {user.role !== 'SUPERADMIN' && (
+                    <Link href="/plans" className="mt-1 inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20 hover:bg-emerald-100 transition-colors">
+                      {user.plan?.name || "Plan Gratuito"}
+                    </Link>
+                  )}
                 </div>
               </div>
               <nav className="flex flex-col gap-2">
@@ -178,6 +193,7 @@ export function Navbar() {
             </div>
           ) : (
             <div className="flex flex-col gap-3 mt-2">
+              <Link href="/plans" className="block px-3 py-2 rounded-lg text-base font-medium text-slate-900 hover:bg-slate-50">Planes</Link>
               <Link href="/login" className="block px-3 py-2 rounded-lg text-base font-medium text-slate-900 hover:bg-slate-50">Iniciar sesión</Link>
               <Link href="/register" className="block px-3 py-2 rounded-lg text-base font-medium text-violet-700 hover:bg-violet-50">Comenzar gratis</Link>
             </div>

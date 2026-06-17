@@ -5,6 +5,10 @@ export type AuthUser = {
   name: string;
   email: string;
   role: UserRole;
+  plan?: {
+    id: string;
+    name: string;
+  } | null;
   createdAt: string;
   updatedAt: string;
 };
