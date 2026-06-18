@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, LineChart, Line } from 'recharts';
 import { Users, FolderGit2, Cpu, DollarSign, TrendingUp } from 'lucide-react';
 
-type Tab = "DASHBOARD" | "PLANS" | "USERS" | "PAYMENTS" | "LOGS";
+type Tab = "DASHBOARD" | "PLANS" | "USERS" | "PAYMENTS" | "LOGS" | "COMMUNITY";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -28,6 +28,10 @@ export default function AdminPage() {
     generationsData: any[]
   } | null>(null);
   const [loadingKpis, setLoadingKpis] = useState(false);
+
+  // Community State
+  const [communityPosts, setCommunityPosts] = useState<any[]>([]);
+  const [loadingCommunity, setLoadingCommunity] = useState(false);
 
   // Plans State
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
@@ -139,6 +143,38 @@ export default function AdminPage() {
       console.error(e);
     } finally {
       setLoadingLogs(false);
+    }
+  }
+
+  async function loadCommunityPosts() {
+    setLoadingCommunity(true);
+    try {
+      const token = getToken();
+      if (!token) return;
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const response = await fetch(`${API_URL}/community/admin/posts`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!response.ok) throw new Error("Error fetching community posts");
+      setCommunityPosts(await response.json());
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingCommunity(false);
+    }
+  }
+
+  async function handleAdminDeletePost(postId: string) {
+    if (!confirm("¿Eliminar este post de la comunidad? Esta acción no se puede deshacer.")) return;
+    try {
+      const token = getToken();
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const res = await fetch(`${API_URL}/community/posts/${postId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) loadCommunityPosts();
+      else alert("Error al eliminar el post");
+    } catch (e) {
+      console.error(e);
     }
   }
 
@@ -271,6 +307,7 @@ export default function AdminPage() {
             <button onClick={() => setActiveTab("USERS")} className={`pb-4 px-2 text-sm font-semibold transition whitespace-nowrap ${activeTab === "USERS" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500 hover:text-slate-700"}`}>Usuarios Registrados</button>
             <button onClick={() => setActiveTab("PAYMENTS")} className={`pb-4 px-2 text-sm font-semibold transition whitespace-nowrap ${activeTab === "PAYMENTS" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500 hover:text-slate-700"}`}>Pagos e Ingresos</button>
             <button onClick={() => setActiveTab("LOGS")} className={`pb-4 px-2 text-sm font-semibold transition whitespace-nowrap ${activeTab === "LOGS" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500 hover:text-slate-700"}`}>Logs de Actividad</button>
+            <button onClick={() => { setActiveTab("COMMUNITY"); loadCommunityPosts(); }} className={`pb-4 px-2 text-sm font-semibold transition whitespace-nowrap ${activeTab === "COMMUNITY" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500 hover:text-slate-700"}`}>Comunidad</button>
           </div>
 
           {activeTab === "DASHBOARD" && (
@@ -563,6 +600,73 @@ export default function AdminPage() {
                     </tbody>
                   </table>
                 </div>
+              )}
+            </section>
+          )}
+
+          {activeTab === "COMMUNITY" && (
+            <section className="rounded-2xl bg-white p-8 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">Posts de la Comunidad</h3>
+                  <p className="text-sm text-slate-500 mt-1">Gestiona y elimina publicaciones de todos los usuarios.</p>
+                </div>
+                <button onClick={loadCommunityPosts} className="text-sm font-semibold text-violet-600 hover:text-violet-800 transition flex items-center gap-1">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                  Actualizar
+                </button>
+              </div>
+              {loadingCommunity ? <p className="text-sm text-slate-500">Cargando posts...</p> : (
+                communityPosts.length === 0 ? (
+                  <p className="text-center text-slate-400 py-12">No hay publicaciones en la comunidad todavía.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-slate-50">
+                        <tr>
+                          <th className="px-4 py-3 font-semibold text-slate-500">Título</th>
+                          <th className="px-4 py-3 font-semibold text-slate-500">Autor</th>
+                          <th className="px-4 py-3 font-semibold text-slate-500">Tags</th>
+                          <th className="px-4 py-3 font-semibold text-slate-500 text-center">Descargas</th>
+                          <th className="px-4 py-3 font-semibold text-slate-500 text-center">Votos</th>
+                          <th className="px-4 py-3 font-semibold text-slate-500 text-center">Comentarios</th>
+                          <th className="px-4 py-3 font-semibold text-slate-500">Fecha</th>
+                          <th className="px-4 py-3 font-semibold text-slate-500 text-right">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {communityPosts.map(post => (
+                          <tr key={post.id} className="border-t border-slate-100 hover:bg-slate-50">
+                            <td className="px-4 py-3 font-medium text-slate-900 max-w-[200px]">
+                              <span className="line-clamp-1" title={post.title}>{post.title}</span>
+                            </td>
+                            <td className="px-4 py-3 text-slate-600 text-xs">{post.author?.email || post.author?.name}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex flex-wrap gap-1">
+                                {post.tags?.slice(0, 2).map((t: string) => (
+                                  <span key={t} className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-700">{t}</span>
+                                ))}
+                                {post.tags?.length > 2 && <span className="text-[10px] text-slate-400">+{post.tags.length - 2}</span>}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-center text-slate-600">{post.downloads}</td>
+                            <td className="px-4 py-3 text-center text-slate-600">{post.upvoteCount}</td>
+                            <td className="px-4 py-3 text-center text-slate-600">{post.commentCount}</td>
+                            <td className="px-4 py-3 text-slate-500 text-xs">{new Date(post.createdAt).toLocaleDateString()}</td>
+                            <td className="px-4 py-3 text-right">
+                              <button
+                                onClick={() => handleAdminDeletePost(post.id)}
+                                className="text-rose-500 hover:text-rose-700 text-xs font-semibold transition"
+                              >
+                                Eliminar
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
               )}
             </section>
           )}

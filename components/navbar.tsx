@@ -70,17 +70,35 @@ export function Navbar() {
           >
             Mis Grupos
           </Link>
+          <Link
+            href="/community"
+            className={`px-3 py-2 rounded-lg text-sm font-semibold transition ${
+              pathname.startsWith('/community') ? 'bg-violet-50 text-violet-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+            }`}
+          >
+            Comunidad
+          </Link>
         </>
       )}
       {user?.role === 'SUPERADMIN' && (
-        <Link
-          href="/admin"
-          className={`px-3 py-2 rounded-lg text-sm font-bold transition ${
-            pathname.startsWith('/admin') ? 'bg-emerald-100 text-emerald-900' : 'text-emerald-700 hover:bg-emerald-50'
-          }`}
-        >
-          Administración
-        </Link>
+        <>
+          <Link
+            href="/admin"
+            className={`px-3 py-2 rounded-lg text-sm font-bold transition ${
+              pathname.startsWith('/admin') ? 'bg-emerald-100 text-emerald-900' : 'text-emerald-700 hover:bg-emerald-50'
+            }`}
+          >
+            Administración
+          </Link>
+          <Link
+            href="/community"
+            className={`px-3 py-2 rounded-lg text-sm font-semibold transition ${
+              pathname.startsWith('/community') ? 'bg-violet-50 text-violet-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+            }`}
+          >
+            Comunidad
+          </Link>
+        </>
       )}
     </>
   );
