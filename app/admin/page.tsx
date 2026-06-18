@@ -7,13 +7,27 @@ import { AuthUser } from "@/app/types/auth";
 import { useEffect, useState, FormEvent } from "react";
 import { SubscriptionPlan } from "@/app/lib/plans";
 import { useRouter } from "next/navigation";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, LineChart, Line } from 'recharts';
+import { Users, FolderGit2, Cpu, DollarSign, TrendingUp } from 'lucide-react';
 
-type Tab = "PLANS" | "USERS" | "LOGS";
+type Tab = "DASHBOARD" | "PLANS" | "USERS" | "PAYMENTS" | "LOGS";
 
 export default function AdminPage() {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [activeTab, setActiveTab] = useState<Tab>("PLANS");
+  const [activeTab, setActiveTab] = useState<Tab>("DASHBOARD");
+
+  // Dashboard State
+  const [kpis, setKpis] = useState<{
+    totalUsers: number, 
+    totalProjects: number, 
+    totalGenerations: number, 
+    totalRevenue: number,
+    revenueData: any[],
+    usersData: any[],
+    generationsData: any[]
+  } | null>(null);
+  const [loadingKpis, setLoadingKpis] = useState(false);
 
   // Plans State
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
@@ -53,9 +67,27 @@ export default function AdminPage() {
   }, [router]);
 
   useEffect(() => {
+    if (activeTab === "DASHBOARD" && !kpis) loadKpis();
     if (activeTab === "USERS" && usersList.length === 0) loadUsers();
     if (activeTab === "LOGS" && logsList.activities.length === 0) loadLogs();
+    if (activeTab === "PAYMENTS" && logsList.payments.length === 0) loadLogs();
   }, [activeTab]);
+
+  async function loadKpis() {
+    setLoadingKpis(true);
+    try {
+      const token = getToken();
+      if (!token) return;
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const response = await fetch(`${API_URL}/admin/kpis`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!response.ok) throw new Error("Error fetching kpis");
+      setKpis(await response.json());
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingKpis(false);
+    }
+  }
 
   async function loadPlans() {
     setLoadingPlans(true);
@@ -198,11 +230,148 @@ export default function AdminPage() {
             </p>
           </div>
 
-          <div className="flex space-x-4 border-b border-slate-200 mb-6">
-            <button onClick={() => setActiveTab("PLANS")} className={`pb-4 px-2 text-sm font-semibold transition ${activeTab === "PLANS" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500 hover:text-slate-700"}`}>Planes de Suscripción</button>
-            <button onClick={() => setActiveTab("USERS")} className={`pb-4 px-2 text-sm font-semibold transition ${activeTab === "USERS" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500 hover:text-slate-700"}`}>Usuarios Registrados</button>
-            <button onClick={() => setActiveTab("LOGS")} className={`pb-4 px-2 text-sm font-semibold transition ${activeTab === "LOGS" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500 hover:text-slate-700"}`}>Logs del Sistema</button>
+          <div className="flex space-x-4 border-b border-slate-200 mb-6 overflow-x-auto">
+            <button onClick={() => setActiveTab("DASHBOARD")} className={`pb-4 px-2 text-sm font-semibold transition whitespace-nowrap ${activeTab === "DASHBOARD" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500 hover:text-slate-700"}`}>Dashboard</button>
+            <button onClick={() => setActiveTab("PLANS")} className={`pb-4 px-2 text-sm font-semibold transition whitespace-nowrap ${activeTab === "PLANS" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500 hover:text-slate-700"}`}>Planes de Suscripción</button>
+            <button onClick={() => setActiveTab("USERS")} className={`pb-4 px-2 text-sm font-semibold transition whitespace-nowrap ${activeTab === "USERS" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500 hover:text-slate-700"}`}>Usuarios Registrados</button>
+            <button onClick={() => setActiveTab("PAYMENTS")} className={`pb-4 px-2 text-sm font-semibold transition whitespace-nowrap ${activeTab === "PAYMENTS" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500 hover:text-slate-700"}`}>Pagos e Ingresos</button>
+            <button onClick={() => setActiveTab("LOGS")} className={`pb-4 px-2 text-sm font-semibold transition whitespace-nowrap ${activeTab === "LOGS" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500 hover:text-slate-700"}`}>Logs de Actividad</button>
           </div>
+
+          {activeTab === "DASHBOARD" && (
+            <section className="space-y-8">
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-bold text-slate-900">Visión General</h3>
+              </div>
+              
+              {loadingKpis || !kpis ? (
+                <div className="flex h-64 items-center justify-center">
+                  <p className="text-sm font-medium text-slate-500 animate-pulse">Analizando métricas del sistema...</p>
+                </div>
+              ) : (
+                <>
+                  {/* Tarjetas Principales (KPIs) */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col justify-center relative overflow-hidden group hover:border-violet-200 transition-colors">
+                      <div className="absolute -right-6 -top-6 text-violet-50 opacity-50 group-hover:scale-110 transition-transform duration-500"><Users size={120} /></div>
+                      <div className="relative z-10">
+                        <div className="flex items-center space-x-3 mb-3">
+                          <div className="p-2 bg-violet-100 text-violet-600 rounded-xl"><Users size={20} /></div>
+                          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Usuarios Totales</p>
+                        </div>
+                        <p className="text-4xl font-black text-slate-900">{kpis.totalUsers}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col justify-center relative overflow-hidden group hover:border-blue-200 transition-colors">
+                      <div className="absolute -right-6 -top-6 text-blue-50 opacity-50 group-hover:scale-110 transition-transform duration-500"><FolderGit2 size={120} /></div>
+                      <div className="relative z-10">
+                        <div className="flex items-center space-x-3 mb-3">
+                          <div className="p-2 bg-blue-100 text-blue-600 rounded-xl"><FolderGit2 size={20} /></div>
+                          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Proyectos</p>
+                        </div>
+                        <p className="text-4xl font-black text-slate-900">{kpis.totalProjects}</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col justify-center relative overflow-hidden group hover:border-emerald-200 transition-colors">
+                      <div className="absolute -right-6 -top-6 text-emerald-50 opacity-50 group-hover:scale-110 transition-transform duration-500"><Cpu size={120} /></div>
+                      <div className="relative z-10">
+                        <div className="flex items-center space-x-3 mb-3">
+                          <div className="p-2 bg-emerald-100 text-emerald-600 rounded-xl"><Cpu size={20} /></div>
+                          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Generaciones AI</p>
+                        </div>
+                        <p className="text-4xl font-black text-slate-900">{kpis.totalGenerations}</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-linear-to-br from-violet-600 to-indigo-800 rounded-2xl p-6 shadow-lg shadow-violet-200 flex flex-col justify-center relative overflow-hidden group text-white">
+                      <div className="absolute -right-6 -top-6 text-white opacity-10 group-hover:scale-110 transition-transform duration-500"><DollarSign size={120} /></div>
+                      <div className="relative z-10">
+                        <div className="flex items-center space-x-3 mb-3">
+                          <div className="p-2 bg-white/20 backdrop-blur-md text-white rounded-xl"><TrendingUp size={20} /></div>
+                          <p className="text-xs font-bold text-violet-200 uppercase tracking-wider">Ingresos Totales</p>
+                        </div>
+                        <p className="text-4xl lg:text-5xl font-black">${kpis.totalRevenue.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Gráficas */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Gráfica de Ingresos */}
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                      <h4 className="text-base font-bold text-slate-800 mb-6 flex items-center gap-2">
+                        <DollarSign size={18} className="text-emerald-500" /> Tendencia de Ingresos Mensuales
+                      </h4>
+                      <div className="h-72 w-full" style={{ minWidth: 0 }}>
+                        <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
+                          <AreaChart data={kpis.revenueData}>
+                            <defs>
+                              <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                                <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} dy={10} />
+                            <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} dx={-10} tickFormatter={(value) => `$${value}`} />
+                            <Tooltip 
+                              contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
+                              formatter={(value: any) => [`$${Number(value).toFixed(2)}`, 'Ingresos']}
+                            />
+                            <Area type="monotone" dataKey="amount" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    {/* Gráfica de Generaciones */}
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                      <h4 className="text-base font-bold text-slate-800 mb-6 flex items-center gap-2">
+                        <Cpu size={18} className="text-blue-500" /> Uso de Inteligencia Artificial (Días)
+                      </h4>
+                      <div className="h-72 w-full" style={{ minWidth: 0 }}>
+                        <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
+                          <BarChart data={kpis.generationsData}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} dy={10} 
+                                   tickFormatter={(val) => val.split('-').slice(1).join('/')} />
+                            <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} dx={-10} />
+                            <Tooltip 
+                              cursor={{fill: '#f8fafc'}}
+                              contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
+                            />
+                            <Bar dataKey="generations" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Generaciones" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    {/* Gráfica de Usuarios (Ancho Completo) */}
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 lg:col-span-2">
+                      <h4 className="text-base font-bold text-slate-800 mb-6 flex items-center gap-2">
+                        <Users size={18} className="text-violet-500" /> Adquisición de Usuarios (Mensual)
+                      </h4>
+                      <div className="h-80 w-full" style={{ minWidth: 0 }}>
+                        <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
+                          <LineChart data={kpis.usersData}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} dy={10} />
+                            <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} dx={-10} />
+                            <Tooltip 
+                              contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
+                            />
+                            <Line type="monotone" dataKey="users" name="Nuevos Usuarios" stroke="#8b5cf6" strokeWidth={3} dot={{r: 6, fill: '#8b5cf6', strokeWidth: 2, stroke: '#fff'}} activeDot={{r: 8}} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </section>
+          )}
 
           {activeTab === "PLANS" && (
             <section className="rounded-2xl bg-white p-8 shadow-sm">
@@ -281,6 +450,45 @@ export default function AdminPage() {
                           <td className="px-4 py-3 text-slate-600">{new Date(u.createdAt).toLocaleDateString()}</td>
                         </tr>
                       ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          )}
+
+          {activeTab === "PAYMENTS" && (
+            <section className="rounded-2xl bg-white p-8 shadow-sm">
+              <h3 className="text-xl font-bold text-slate-900 mb-4">Historial de Pagos</h3>
+              {loadingLogs ? <p className="text-sm text-slate-500">Cargando pagos...</p> : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="px-4 py-3 font-semibold text-slate-500">Fecha</th>
+                        <th className="px-4 py-3 font-semibold text-slate-500">Usuario</th>
+                        <th className="px-4 py-3 font-semibold text-slate-500">Monto</th>
+                        <th className="px-4 py-3 font-semibold text-slate-500">Estado</th>
+                        <th className="px-4 py-3 font-semibold text-slate-500">Referencia (Stripe)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {logsList.payments.map(payment => (
+                        <tr key={payment.id} className="border-t border-slate-100 hover:bg-slate-50">
+                          <td className="px-4 py-3 text-slate-500">{new Date(payment.createdAt).toLocaleString()}</td>
+                          <td className="px-4 py-3 text-slate-900 font-medium">{payment.user?.email || 'Desconocido'}</td>
+                          <td className="px-4 py-3 text-emerald-600 font-bold">${payment.amount} {payment.currency}</td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-1 text-xs rounded font-semibold ${payment.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                              {payment.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-slate-500 text-xs font-mono">{payment.reference || '-'}</td>
+                        </tr>
+                      ))}
+                      {logsList.payments.length === 0 && (
+                        <tr><td colSpan={5} className="p-4 text-center text-slate-500">No hay pagos registrados.</td></tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
