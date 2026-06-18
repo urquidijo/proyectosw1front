@@ -56,6 +56,11 @@ export default function AdminPage() {
   });
   const [creatingPlan, setCreatingPlan] = useState(false);
 
+  // SuperAdmin Modal State
+  const [isSuperAdminModalOpen, setIsSuperAdminModalOpen] = useState(false);
+  const [creatingSuperAdmin, setCreatingSuperAdmin] = useState(false);
+  const [newSuperAdmin, setNewSuperAdmin] = useState({ name: "", email: "", password: "" });
+
   useEffect(() => {
     const storedUser = getStoredUser();
     if (storedUser && storedUser.role !== "SUPERADMIN") {
@@ -134,6 +139,36 @@ export default function AdminPage() {
       console.error(e);
     } finally {
       setLoadingLogs(false);
+    }
+  }
+
+  async function handleCreateSuperAdmin(e: FormEvent) {
+    e.preventDefault();
+    setCreatingSuperAdmin(true);
+    try {
+      const token = getToken();
+      if (!token) return;
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const response = await fetch(`${API_URL}/users/superadmin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(newSuperAdmin),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert(error.message || "Error al crear SuperAdmin");
+        return;
+      }
+
+      setIsSuperAdminModalOpen(false);
+      setNewSuperAdmin({ name: "", email: "", password: "" });
+      loadUsers();
+    } catch (e) {
+      console.error(e);
+      alert("Error de red");
+    } finally {
+      setCreatingSuperAdmin(false);
     }
   }
 
@@ -427,7 +462,10 @@ export default function AdminPage() {
 
           {activeTab === "USERS" && (
             <section className="rounded-2xl bg-white p-8 shadow-sm">
-              <h3 className="text-xl font-bold text-slate-900 mb-4">Usuarios del Sistema</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-slate-900">Usuarios del Sistema</h3>
+                <button onClick={() => setIsSuperAdminModalOpen(true)} className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 transition">+ Añadir SuperAdmin</button>
+              </div>
               {loadingUsers ? <p className="text-sm text-slate-500">Cargando usuarios...</p> : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
@@ -555,6 +593,36 @@ export default function AdminPage() {
               <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-slate-100">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancelar</button>
                 <button type="submit" disabled={creatingPlan} className={`rounded-lg px-4 py-2 text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-60`}>{creatingPlan ? "Creando..." : "Guardar Plan"}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* SuperAdmin Creation Modal */}
+      {isSuperAdminModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl">
+            <h3 className="mb-6 text-xl font-bold text-slate-900">Crear Nuevo SuperAdmin</h3>
+            <form onSubmit={handleCreateSuperAdmin} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Nombre</label>
+                <input required type="text" value={newSuperAdmin.name} onChange={e => setNewSuperAdmin({ ...newSuperAdmin, name: e.target.value })} className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-900 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500" placeholder="Nombre completo" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Correo Electrónico</label>
+                <input required type="email" value={newSuperAdmin.email} onChange={e => setNewSuperAdmin({ ...newSuperAdmin, email: e.target.value })} className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-900 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500" placeholder="admin@empresa.com" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Contraseña</label>
+                <input required type="password" value={newSuperAdmin.password} onChange={e => setNewSuperAdmin({ ...newSuperAdmin, password: e.target.value })} className="w-full rounded-xl border border-slate-200 px-4 py-2 text-slate-900 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500" placeholder="Contraseña segura" />
+              </div>
+
+              <div className="mt-8 flex justify-end space-x-3">
+                <button type="button" onClick={() => setIsSuperAdminModalOpen(false)} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 transition">Cancelar</button>
+                <button type="submit" disabled={creatingSuperAdmin} className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 transition disabled:opacity-50">
+                  {creatingSuperAdmin ? "Creando..." : "Crear SuperAdmin"}
+                </button>
               </div>
             </form>
           </div>
