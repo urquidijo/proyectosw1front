@@ -1,9 +1,10 @@
 export type SubscriptionPlan = {
   id: string;
   name: string;
-  type: 'PERSONAL' | 'GROUP' | 'API_USAGE';
+  type: 'INDIVIDUAL' | 'GROUP';
   price: number;
   maxWorkspaces: number | null;
+  maxProjects: number | null;
   maxUsersPerWorkspace: number | null;
   maxGenerationsPerMonth: number | null;
   apiCostPer1kRows: number | null;

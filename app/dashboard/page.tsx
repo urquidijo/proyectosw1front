@@ -11,6 +11,7 @@ import {
 import { Project } from '@/app/types/project';
 import { AuthUser } from '@/app/types/auth';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useState } from 'react';
 
 export default function DashboardPage() {
@@ -25,10 +26,17 @@ export default function DashboardPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
+  const router = useRouter();
+
   useEffect(() => {
-    setUser(getStoredUser());
+    const storedUser = getStoredUser();
+    if (storedUser?.role === 'SUPERADMIN') {
+      router.replace('/admin');
+      return;
+    }
+    setUser(storedUser);
     loadProjects();
-  }, []);
+  }, [router]);
 
   async function loadProjects() {
     setError('');

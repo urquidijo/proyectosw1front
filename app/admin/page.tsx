@@ -29,12 +29,15 @@ export default function AdminPage() {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [planType, setPlanType] = useState<"SYSTEM" | "API">("SYSTEM");
+  const [planType, setPlanType] = useState<"INDIVIDUAL" | "GROUP">("GROUP");
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [newPlan, setNewPlan] = useState({
     name: "",
     price: 0,
     maxWorkspaces: 1,
+    maxProjects: 1,
     maxUsersPerWorkspace: 3,
+    maxGenerationsPerMonth: 100,
     apiCostPer1kRows: 0,
   });
   const [creatingPlan, setCreatingPlan] = useState(false);
@@ -111,28 +114,73 @@ export default function AdminPage() {
       
       const payload = {
         name: newPlan.name,
-        type: planType === "API" ? "API_USAGE" : "GROUP",
+        type: planType,
         price: Number(newPlan.price),
-        maxWorkspaces: planType === "SYSTEM" ? Number(newPlan.maxWorkspaces) : null,
-        maxUsersPerWorkspace: planType === "SYSTEM" ? Number(newPlan.maxUsersPerWorkspace) : null,
-        maxGenerationsPerMonth: planType === "SYSTEM" ? 100 : null,
-        apiCostPer1kRows: planType === "API" ? Number(newPlan.apiCostPer1kRows) : null,
+        maxProjects: Number(newPlan.maxProjects),
+        maxWorkspaces: Number(newPlan.maxWorkspaces),
+        maxUsersPerWorkspace: Number(newPlan.maxUsersPerWorkspace),
+        maxGenerationsPerMonth: Number(newPlan.maxGenerationsPerMonth),
+        apiCostPer1kRows: Number(newPlan.apiCostPer1kRows),
       };
 
-      const response = await fetch(`${API_URL}/plans`, {
-        method: "POST",
+      const url = editingPlanId ? `${API_URL}/plans/${editingPlanId}` : `${API_URL}/plans`;
+      const method = editingPlanId ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload)
       });
 
-      if (!response.ok) throw new Error("Error creating plan");
+      if (!response.ok) throw new Error("Error saving plan");
       await loadPlans();
       setIsModalOpen(false);
+      setEditingPlanId(null);
     } catch (error) {
-      alert("Error al crear el plan");
+      alert("Error al guardar el plan");
     } finally {
       setCreatingPlan(false);
     }
+  }
+
+  async function handleDeletePlan(id: string) {
+    if (!confirm("¿Estás seguro de que deseas eliminar este plan?")) return;
+    try {
+      const token = getToken();
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const response = await fetch(`${API_URL}/plans/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error("Error deleting plan");
+      await loadPlans();
+    } catch (e) {
+      alert("Error al eliminar el plan");
+    }
+  }
+
+  function openCreateModal() {
+    setEditingPlanId(null);
+    setPlanType("GROUP");
+    setNewPlan({
+      name: "", price: 0, maxWorkspaces: 1, maxProjects: 1, maxUsersPerWorkspace: 3, maxGenerationsPerMonth: 100, apiCostPer1kRows: 0
+    });
+    setIsModalOpen(true);
+  }
+
+  function openEditModal(plan: SubscriptionPlan) {
+    setEditingPlanId(plan.id);
+    setPlanType(plan.type as "INDIVIDUAL" | "GROUP");
+    setNewPlan({
+      name: plan.name,
+      price: plan.price,
+      maxWorkspaces: plan.maxWorkspaces || 1,
+      maxProjects: plan.maxProjects || 1,
+      maxUsersPerWorkspace: plan.maxUsersPerWorkspace || 3,
+      maxGenerationsPerMonth: plan.maxGenerationsPerMonth || 100,
+      apiCostPer1kRows: plan.apiCostPer1kRows || 0,
+    });
+    setIsModalOpen(true);
   }
 
   if (!user) return null;
@@ -163,7 +211,7 @@ export default function AdminPage() {
                   <h3 className="text-xl font-bold text-slate-900">Planes Activos</h3>
                   <p className="text-sm text-slate-500">Configura los límites de los usuarios y costos de API.</p>
                 </div>
-                <button onClick={() => setIsModalOpen(true)} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 transition">+ Crear Plan</button>
+                <button onClick={openCreateModal} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 transition">+ Crear Plan</button>
               </div>
 
               {loadingPlans ? (
@@ -176,8 +224,9 @@ export default function AdminPage() {
                         <th className="px-4 py-3 font-semibold text-slate-500">Nombre</th>
                         <th className="px-4 py-3 font-semibold text-slate-500">Tipo</th>
                         <th className="px-4 py-3 font-semibold text-slate-500">Precio</th>
-                        <th className="px-4 py-3 font-semibold text-slate-500">Límites (Grupos / Usuarios)</th>
-                        <th className="px-4 py-3 font-semibold text-slate-500">Costo API (1k)</th>
+                        <th className="px-4 py-3 font-semibold text-slate-500">Límites (Proy. / Grupos / Usuarios)</th>
+                        <th className="px-4 py-3 font-semibold text-slate-500">Costo API</th>
+                        <th className="px-4 py-3 font-semibold text-slate-500 text-right">Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -185,14 +234,18 @@ export default function AdminPage() {
                         <tr key={plan.id} className="border-t border-slate-100 hover:bg-slate-50">
                           <td className="px-4 py-3 font-medium text-slate-900">{plan.name}</td>
                           <td className="px-4 py-3 text-slate-600">
-                            <span className={`px-2 py-1 text-xs rounded-lg font-semibold ${plan.type === 'API_USAGE' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>{plan.type}</span>
+                            <span className={`px-2 py-1 text-xs rounded-lg font-semibold bg-blue-100 text-blue-700`}>{plan.type}</span>
                           </td>
                           <td className="px-4 py-3 text-slate-600">${plan.price}</td>
                           <td className="px-4 py-3 text-slate-600">
-                            {plan.type === 'API_USAGE' ? 'N/A' : `${plan.maxWorkspaces || '∞'} / ${plan.maxUsersPerWorkspace || '∞'}`}
+                            {`${plan.maxProjects || '∞'} / ${plan.maxWorkspaces || '∞'} / ${plan.maxUsersPerWorkspace || '∞'}`}
                           </td>
                           <td className="px-4 py-3 text-slate-600">
-                            {plan.type === 'API_USAGE' ? `$${plan.apiCostPer1kRows}` : 'N/A'}
+                            {plan.apiCostPer1kRows ? `$${plan.apiCostPer1kRows}` : 'N/A'}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <button onClick={() => openEditModal(plan)} className="text-violet-600 hover:text-violet-800 text-sm font-semibold mr-3">Editar</button>
+                            <button onClick={() => handleDeletePlan(plan.id)} className="text-rose-600 hover:text-rose-800 text-sm font-semibold">Eliminar</button>
                           </td>
                         </tr>
                       ))}
@@ -273,25 +326,27 @@ export default function AdminPage() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
           <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
-            <h3 className="text-xl font-bold text-slate-900 mb-4">Crear Nuevo Plan</h3>
+            <h3 className="text-xl font-bold text-slate-900 mb-4">{editingPlanId ? "Editar Plan" : "Crear Nuevo Plan"}</h3>
             <div className="flex gap-2 mb-6">
-              <button onClick={() => setPlanType("SYSTEM")} className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${planType === "SYSTEM" ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>Plan de Sistema</button>
-              <button onClick={() => setPlanType("API")} className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${planType === "API" ? "bg-orange-100 text-orange-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>Plan de API</button>
+              <button onClick={() => setPlanType("INDIVIDUAL")} className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${planType === "INDIVIDUAL" ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>Individual</button>
+              <button onClick={() => setPlanType("GROUP")} className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${planType === "GROUP" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>Grupo</button>
             </div>
             <form onSubmit={handleCreatePlan} className="space-y-4">
-              <div><label className="mb-1 block text-sm font-medium text-slate-700">Nombre del Plan</label><input required type="text" value={newPlan.name} onChange={e => setNewPlan({...newPlan, name: e.target.value})} className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm outline-none focus:border-violet-600" /></div>
-              <div><label className="mb-1 block text-sm font-medium text-slate-700">Precio Mensual ($)</label><input required type="number" step="0.01" value={newPlan.price} onChange={e => setNewPlan({...newPlan, price: Number(e.target.value)})} className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm outline-none focus:border-violet-600" /></div>
-              {planType === "SYSTEM" ? (
-                <div className="grid grid-cols-2 gap-4">
-                  <div><label className="mb-1 block text-sm font-medium text-slate-700">Límite Grupos</label><input required type="number" value={newPlan.maxWorkspaces} onChange={e => setNewPlan({...newPlan, maxWorkspaces: Number(e.target.value)})} className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm outline-none focus:border-violet-600" /></div>
-                  <div><label className="mb-1 block text-sm font-medium text-slate-700">Límite Usuarios</label><input required type="number" value={newPlan.maxUsersPerWorkspace} onChange={e => setNewPlan({...newPlan, maxUsersPerWorkspace: Number(e.target.value)})} className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm outline-none focus:border-violet-600" /></div>
-                </div>
-              ) : (
-                <div><label className="mb-1 block text-sm font-medium text-slate-700">Costo / 1000 filas ($)</label><input required type="number" step="0.001" value={newPlan.apiCostPer1kRows} onChange={e => setNewPlan({...newPlan, apiCostPer1kRows: Number(e.target.value)})} className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm outline-none focus:border-orange-600" /></div>
-              )}
+              <div><label className="mb-1 block text-sm font-medium text-slate-700">Nombre del Plan</label><input required type="text" value={newPlan.name} onChange={e => setNewPlan({...newPlan, name: e.target.value})} className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-900 outline-none focus:border-violet-600" /></div>
+              <div><label className="mb-1 block text-sm font-medium text-slate-700">Precio Mensual ($)</label><input required type="number" step="0.01" value={newPlan.price} onChange={e => setNewPlan({...newPlan, price: Number(e.target.value)})} className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-900 outline-none focus:border-violet-600" /></div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="mb-1 block text-sm font-medium text-slate-700">Límite Proyectos</label><input required type="number" value={newPlan.maxProjects} onChange={e => setNewPlan({...newPlan, maxProjects: Number(e.target.value)})} className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-900 outline-none focus:border-violet-600" /></div>
+                <div><label className="mb-1 block text-sm font-medium text-slate-700">Límite Grupos</label><input required type="number" value={newPlan.maxWorkspaces} onChange={e => setNewPlan({...newPlan, maxWorkspaces: Number(e.target.value)})} className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-900 outline-none focus:border-violet-600" /></div>
+                <div><label className="mb-1 block text-sm font-medium text-slate-700">Usr. por Grupo</label><input required type="number" value={newPlan.maxUsersPerWorkspace} onChange={e => setNewPlan({...newPlan, maxUsersPerWorkspace: Number(e.target.value)})} className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-900 outline-none focus:border-violet-600" /></div>
+                <div><label className="mb-1 block text-sm font-medium text-slate-700">Gens. por Mes</label><input required type="number" value={newPlan.maxGenerationsPerMonth} onChange={e => setNewPlan({...newPlan, maxGenerationsPerMonth: Number(e.target.value)})} className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-900 outline-none focus:border-violet-600" /></div>
+              </div>
+              
+              <div><label className="mb-1 block text-sm font-medium text-slate-700">Costo / 1000 filas API ($)</label><input type="number" step="0.001" value={newPlan.apiCostPer1kRows} onChange={e => setNewPlan({...newPlan, apiCostPer1kRows: Number(e.target.value)})} className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-900 outline-none focus:border-violet-600" /></div>
+              
               <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-slate-100">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancelar</button>
-                <button type="submit" disabled={creatingPlan} className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${planType === "API" ? "bg-orange-600 hover:bg-orange-700" : "bg-violet-600 hover:bg-violet-700"} disabled:opacity-60`}>{creatingPlan ? "Creando..." : "Guardar Plan"}</button>
+                <button type="submit" disabled={creatingPlan} className={`rounded-lg px-4 py-2 text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-60`}>{creatingPlan ? "Creando..." : "Guardar Plan"}</button>
               </div>
             </form>
           </div>
