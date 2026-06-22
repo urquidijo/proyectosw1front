@@ -161,7 +161,7 @@ export function useGenerationRules({
     tableName: string,
     columnName: string,
     field: keyof ColumnGenerationRule,
-    value: string | boolean | string[],
+    value: string | boolean | string[] | number,
   ) {
     setRulesJson((currentRules) => {
       const currentTable = currentRules.tables[tableName] ?? {
@@ -183,6 +183,26 @@ export function useGenerationRules({
                 [field]: value,
               },
             },
+          },
+        },
+      };
+    });
+  }
+
+  function resetColumnRule(tableName: string, columnName: string) {
+    setRulesJson((currentRules) => {
+      const currentTable = currentRules.tables[tableName];
+      if (!currentTable?.columns?.[columnName]) return currentRules;
+
+      const remainingColumns = { ...currentTable.columns };
+      delete remainingColumns[columnName];
+
+      return {
+        tables: {
+          ...currentRules.tables,
+          [tableName]: {
+            ...currentTable,
+            columns: remainingColumns,
           },
         },
       };
@@ -256,6 +276,7 @@ export function useGenerationRules({
     handleRuleSetChange,
     updateTableRowCount,
     updateColumnRule,
+    resetColumnRule,
     handleSaveRules,
     getRulesForSubmit,
   };
