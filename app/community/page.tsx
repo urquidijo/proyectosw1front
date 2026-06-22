@@ -116,7 +116,7 @@ export default function CommunityPage() {
           <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
-                Comunidad de Plantillas
+                Comunidad
               </h1>
               <p className="mt-1 text-slate-500">
                 Comparte y descarga esquemas SQL creados por la comunidad.
