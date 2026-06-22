@@ -20,6 +20,7 @@ export default function CommunityPostPage({ params }: { params: Promise<{ id: st
   const [submittingComment, setSubmittingComment] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [upvoting, setUpvoting] = useState(false);
+  const [isImageOpen, setIsImageOpen] = useState(false);
 
   useEffect(() => {
     setUser(getStoredUser());
@@ -164,11 +165,20 @@ export default function CommunityPostPage({ params }: { params: Promise<{ id: st
           <article className="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden">
             {/* Cover Image — signed URL from backend */}
             {post.imageUrl && (
-              <img
-                src={post.imageUrl}
-                alt={post.title}
-                className="w-full h-56 object-cover"
-              />
+              <div className="relative group cursor-pointer" onClick={() => setIsImageOpen(true)}>
+                <img
+                  src={post.imageUrl}
+                  alt={post.title}
+                  className="w-full h-56 object-cover"
+                />
+                <button
+                  onClick={(e) => { e.stopPropagation(); setIsImageOpen(true); }}
+                  className="absolute bottom-4 right-4 flex items-center gap-2 rounded-lg bg-black/60 px-3 py-1.5 text-xs font-medium text-white backdrop-blur transition hover:bg-black/80 opacity-0 group-hover:opacity-100 shadow-md"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" /></svg>
+                  Ver imagen completa
+                </button>
+              </div>
             )}
 
             {/* Gradient Bar */}
@@ -318,6 +328,29 @@ export default function CommunityPostPage({ params }: { params: Promise<{ id: st
           </section>
         </main>
       </div>
+
+      {/* Fullscreen Image Modal */}
+      {isImageOpen && post.imageUrl && (
+        <div 
+          className="fixed inset-0 z-100 flex items-center justify-center bg-slate-900/90 backdrop-blur-sm p-4 sm:p-8"
+          onClick={() => setIsImageOpen(false)}
+        >
+          <button 
+            className="absolute top-4 right-4 text-white hover:text-slate-300 transition bg-slate-800/50 rounded-full p-2"
+            onClick={() => setIsImageOpen(false)}
+          >
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <img 
+            src={post.imageUrl} 
+            alt={post.title} 
+            className="max-h-full max-w-full rounded-xl object-contain shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </AuthGuard>
   );
 }

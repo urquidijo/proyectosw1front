@@ -78,6 +78,14 @@ export function Navbar() {
           >
             Comunidad
           </Link>
+          <Link
+            href="/usage"
+            className={`px-3 py-2 rounded-lg text-sm font-semibold transition ${
+              pathname === '/usage' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+            }`}
+          >
+            Mi Plan
+          </Link>
         </>
       )}
       {user?.role === 'SUPERADMIN' && (
