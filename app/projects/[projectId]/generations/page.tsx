@@ -3,7 +3,6 @@
 import { getToken } from "@/app/lib/auth";
 import {
   createGenerationRequest,
-  downloadGenerationSqlRequest,
   getGenerationRequest,
   listGenerationsRequest,
   getGenerationStatusRequest,
@@ -21,6 +20,7 @@ import { Navbar } from "@/components/navbar";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ExportMenu } from "./components/export-menu";
 import { GenerationRulesPanel } from "./components/generation-rules-panel";
 import { useGenerationRules } from "./hooks/use-generation-rules";
 import { normalizeRowConfig } from "./utils/generation-rules.utils";
@@ -48,7 +48,6 @@ export default function GenerationsPage() {
   const [loadingData, setLoadingData] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [loadingGeneration, setLoadingGeneration] = useState(false);
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const [error, setError] = useState("");
   const [region, setRegion] = useState("BOLIVIA");
@@ -278,6 +277,12 @@ export default function GenerationsPage() {
           sqlImportId: selectedImport.id,
           rowConfig: normalizedRowConfig.value,
           region,
+          ...(generationRules.useAdvancedRules
+            ? {
+                ruleSetId: generationRules.selectedRuleSetId || undefined,
+                rules: generationRules.getRulesForSubmit(),
+              }
+            : {}),
         },
       );
 
@@ -325,49 +330,6 @@ export default function GenerationsPage() {
       );
     } finally {
       setLoadingGeneration(false);
-    }
-  }
-
-  async function handleDownload(generationId: string) {
-    setError("");
-    setDownloadingId(generationId);
-
-    try {
-      const token = getToken();
-
-      if (!token) {
-        throw new Error("No existe una sesión activa");
-      }
-
-      if (!projectId) {
-        throw new Error("Proyecto no válido");
-      }
-
-      const blob = await downloadGenerationSqlRequest(
-        token,
-        projectId,
-        generationId,
-      );
-
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-
-      link.href = url;
-      link.download = `syndata-${generationId}.sql`;
-
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Error al descargar el archivo SQL",
-      );
-    } finally {
-      setDownloadingId(null);
     }
   }
 
@@ -685,6 +647,7 @@ export default function GenerationsPage() {
                         savingRules={generationRules.savingRules}
                         onRuleSetChange={generationRules.handleRuleSetChange}
                         onColumnRuleChange={generationRules.updateColumnRule}
+                        onResetColumn={generationRules.resetColumnRule}
                         onSaveRules={generationRules.handleSaveRules}
                       />
 
@@ -712,44 +675,13 @@ export default function GenerationsPage() {
                         </p>
                       </div>
 
-                      {selectedGeneration && (
-                        <button
-                          type="button"
-                          onClick={() => handleDownload(selectedGeneration.id)}
-                          disabled={downloadingId === selectedGeneration.id}
-                          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            className="h-4 w-4"
-                            aria-hidden="true"
-                          >
-                            <path
-                              d="M12 3v12"
-                              stroke="currentColor"
-                              strokeWidth="1.8"
-                              strokeLinecap="round"
-                            />
-                            <path
-                              d="m7 10 5 5 5-5"
-                              stroke="currentColor"
-                              strokeWidth="1.8"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                            <path
-                              d="M5 20h14"
-                              stroke="currentColor"
-                              strokeWidth="1.8"
-                              strokeLinecap="round"
-                            />
-                          </svg>
-
-                          {downloadingId === selectedGeneration.id
-                            ? "Descargando..."
-                            : "Descargar inserts.sql"}
-                        </button>
+                      {selectedGeneration && projectId && (
+                        <ExportMenu
+                          projectId={projectId}
+                          generationId={selectedGeneration.id}
+                          label="Exportar dataset"
+                          onError={setError}
+                        />
                       )}
                     </div>
 
@@ -892,7 +824,19 @@ export default function GenerationsPage() {
                                 </span>
                               </summary>
 
-                              <div className="mt-4">
+                              <div className="mt-4 space-y-3">
+                                {projectId && (
+                                  <div className="flex justify-end">
+                                    <ExportMenu
+                                      projectId={projectId}
+                                      generationId={selectedGeneration.id}
+                                      table={tableName}
+                                      label={`Exportar "${tableName}"`}
+                                      onError={setError}
+                                    />
+                                  </div>
+                                )}
+
                                 {renderPreviewTable(tableName, rows)}
                               </div>
                             </details>
@@ -967,18 +911,21 @@ export default function GenerationsPage() {
                                     Ver
                                   </button>
 
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleDownload(generation.id)
-                                    }
-                                    disabled={downloadingId === generation.id}
-                                    className="rounded-xl border border-emerald-200 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
-                                  >
-                                    {downloadingId === generation.id
-                                      ? "Descargando..."
-                                      : "Descargar"}
-                                  </button>
+                                  {generation.status === "COMPLETED" &&
+                                  projectId ? (
+                                    <ExportMenu
+                                      projectId={projectId}
+                                      generationId={generation.id}
+                                      label="Exportar"
+                                      onError={setError}
+                                    />
+                                  ) : (
+                                    <span className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-400">
+                                      {generation.status === "FAILED"
+                                        ? "Falló"
+                                        : "Procesando..."}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                             </article>

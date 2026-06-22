@@ -189,7 +189,7 @@ export default function ProjectDetailPage() {
                   </p>
                 </div>
 
-                <div className="mt-5 grid gap-5 lg:grid-cols-3">
+                <div className="mt-5 grid gap-5 md:grid-cols-2">
                   <article className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 text-white">
                       <svg
@@ -294,60 +294,6 @@ export default function ProjectDetailPage() {
                       Abrir generador
                     </Link>
                   </article>
-
-                  <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        className="h-6 w-6"
-                        aria-hidden="true"
-                      >
-                        <path
-                          d="M12 3v12"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                          strokeLinecap="round"
-                        />
-                        <path
-                          d="m7 10 5 5 5-5"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                        <path
-                          d="M5 20h14"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                    </div>
-
-                    <div className="mt-5 flex items-center gap-2">
-                      <h3 className="text-lg font-semibold text-slate-900">
-                        Exportaciones
-                      </h3>
-
-                      <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-500">
-                        Próximamente
-                      </span>
-                    </div>
-
-                    <p className="mt-2 min-h-12 text-sm text-slate-500">
-                      Próximamente podrás exportar resultados en formatos JSON y
-                      CSV además de SQL.
-                    </p>
-
-                    <button
-                      disabled
-                      className="mt-6 w-full cursor-not-allowed rounded-xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-400"
-                    >
-                      No disponible aún
-                    </button>
-                  </article>
-
                 </div>
               </section>
             </>

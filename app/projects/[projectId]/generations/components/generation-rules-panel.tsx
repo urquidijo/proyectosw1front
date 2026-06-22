@@ -5,10 +5,9 @@ import type {
   GenerationRuleSet,
   GenerationRulesJson,
 } from "@/app/types/generation-rule";
-import {
-  RULE_TYPES,
-  type SchemaTable,
-} from "../utils/generation-rules.utils";
+import { useState } from "react";
+import { countCustomizedColumns, type SchemaTable } from "../utils/generation-rules.utils";
+import { ColumnRulesModal } from "./column-rules-modal";
 
 type Props = {
   selectedTables: SchemaTable[];
@@ -25,8 +24,9 @@ type Props = {
     tableName: string,
     columnName: string,
     field: keyof ColumnGenerationRule,
-    value: string | boolean | string[],
+    value: string | boolean | string[] | number,
   ) => void;
+  onResetColumn: (tableName: string, columnName: string) => void;
   onSaveRules: () => void;
 };
 
@@ -42,8 +42,15 @@ export function GenerationRulesPanel({
   savingRules,
   onRuleSetChange,
   onColumnRuleChange,
+  onResetColumn,
   onSaveRules,
 }: Props) {
+  const [modalOpen, setModalOpen] = useState(false);
+  const { customized, total } = countCustomizedColumns(
+    selectedTables,
+    rulesJson,
+  );
+
   return (
     <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
       <div className="flex items-start gap-3">
@@ -64,8 +71,8 @@ export function GenerationRulesPanel({
           </label>
 
           <p className="mt-1 text-xs text-violet-700">
-            Permite definir tipos como EMAIL, PERSON_NAME, ENUM, DATE, MONEY,
-            valores únicos y rangos.
+            Define tipos como EMAIL, PERSON_NAME, ENUM, DATE o MONEY, valores
+            únicos y rangos para cada columna.
           </p>
         </div>
       </div>
@@ -94,6 +101,27 @@ export function GenerationRulesPanel({
             </div>
           )}
 
+          <button
+            type="button"
+            onClick={() => setModalOpen(true)}
+            className="flex w-full items-center justify-between gap-3 rounded-xl border border-violet-200 bg-white px-4 py-3 text-left transition hover:border-violet-300 hover:bg-violet-50"
+          >
+            <span>
+              <span className="block text-sm font-semibold text-slate-900">
+                Configurar reglas por columna
+              </span>
+              <span className="mt-0.5 block text-xs text-slate-500">
+                {total === 0
+                  ? "No hay columnas configurables en este esquema"
+                  : `${customized} de ${total} columnas personalizadas`}
+              </span>
+            </span>
+
+            <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 shrink-0 text-violet-600" aria-hidden="true">
+              <path d="m9 6 6 6-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+
           <div>
             <label className="mb-2 block text-sm font-medium text-violet-950">
               Nombre de la configuración
@@ -108,175 +136,6 @@ export function GenerationRulesPanel({
             />
           </div>
 
-          <div className="space-y-4">
-            {selectedTables.map((table) => (
-              <details
-                key={`rules-${table.name}`}
-                className="rounded-2xl border border-violet-200 bg-white p-4"
-              >
-                <summary className="cursor-pointer text-sm font-bold text-slate-900">
-                  Reglas de columnas: {table.name}
-                </summary>
-
-                <div className="mt-4 space-y-3">
-                  {table.columns.map((column) => {
-                    const columnRule =
-                      rulesJson.tables[table.name]?.columns?.[column.name] ??
-                      {};
-
-                    return (
-                      <div
-                        key={`${table.name}-${column.name}`}
-                        className="rounded-xl border border-slate-200 p-3"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div>
-                            <p className="text-sm font-semibold text-slate-800">
-                              {column.name}
-                            </p>
-
-                            <p className="text-xs text-slate-500">
-                              Tipo SQL: {column.rawType}
-                            </p>
-                          </div>
-
-                          <div className="flex gap-3 text-xs text-slate-600">
-                            <label className="flex items-center gap-1">
-                              <input
-                                type="checkbox"
-                                checked={Boolean(columnRule.unique)}
-                                onChange={(event) =>
-                                  onColumnRuleChange(
-                                    table.name,
-                                    column.name,
-                                    "unique",
-                                    event.target.checked,
-                                  )
-                                }
-                              />
-                              Único
-                            </label>
-
-                            <label className="flex items-center gap-1">
-                              <input
-                                type="checkbox"
-                                checked={Boolean(columnRule.nullable)}
-                                onChange={(event) =>
-                                  onColumnRuleChange(
-                                    table.name,
-                                    column.name,
-                                    "nullable",
-                                    event.target.checked,
-                                  )
-                                }
-                              />
-                              Permitir NULL
-                            </label>
-                          </div>
-                        </div>
-
-                        <div className="mt-3 grid gap-3 md:grid-cols-3">
-                          <div>
-                            <label className="mb-1 block text-xs font-medium text-slate-600">
-                              Tipo semántico
-                            </label>
-
-                            <select
-                              value={columnRule.type ?? ""}
-                              onChange={(event) =>
-                                onColumnRuleChange(
-                                  table.name,
-                                  column.name,
-                                  "type",
-                                  event.target.value,
-                                )
-                              }
-                              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                            >
-                              <option value="">Automático</option>
-
-                              {RULE_TYPES.map((type) => (
-                                <option key={type} value={type}>
-                                  {type}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="mb-1 block text-xs font-medium text-slate-600">
-                              Mínimo / Desde
-                            </label>
-
-                            <input
-                              type="text"
-                              value={columnRule.min ?? ""}
-                              onChange={(event) =>
-                                onColumnRuleChange(
-                                  table.name,
-                                  column.name,
-                                  "min",
-                                  event.target.value,
-                                )
-                              }
-                              placeholder="Ej: 1 o 2024-01-01"
-                              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="mb-1 block text-xs font-medium text-slate-600">
-                              Máximo / Hasta
-                            </label>
-
-                            <input
-                              type="text"
-                              value={columnRule.max ?? ""}
-                              onChange={(event) =>
-                                onColumnRuleChange(
-                                  table.name,
-                                  column.name,
-                                  "max",
-                                  event.target.value,
-                                )
-                              }
-                              placeholder="Ej: 1000 o 2026-12-31"
-                              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="mt-3">
-                          <label className="mb-1 block text-xs font-medium text-slate-600">
-                            Valores permitidos
-                          </label>
-
-                          <input
-                            type="text"
-                            value={columnRule.values?.join(", ") ?? ""}
-                            onChange={(event) =>
-                              onColumnRuleChange(
-                                table.name,
-                                column.name,
-                                "values",
-                                event.target.value
-                                  .split(",")
-                                  .map((value) => value.trim())
-                                  .filter(Boolean),
-                              )
-                            }
-                            placeholder="Ej: ACTIVO, INACTIVO, BLOQUEADO"
-                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </details>
-            ))}
-          </div>
-
           <button
             type="button"
             onClick={onSaveRules}
@@ -289,6 +148,15 @@ export function GenerationRulesPanel({
           </button>
         </div>
       )}
+
+      <ColumnRulesModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        selectedTables={selectedTables}
+        rulesJson={rulesJson}
+        onColumnRuleChange={onColumnRuleChange}
+        onResetColumn={onResetColumn}
+      />
     </div>
   );
 }
