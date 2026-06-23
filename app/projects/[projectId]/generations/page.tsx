@@ -24,6 +24,7 @@ import { ExportMenu } from "./components/export-menu";
 import { GenerationRulesPanel } from "./components/generation-rules-panel";
 import { useGenerationRules } from "./hooks/use-generation-rules";
 import { normalizeRowConfig } from "./utils/generation-rules.utils";
+import { FlowStepper } from "@/components/flow-stepper";
 
 export default function GenerationsPage() {
   const params = useParams();
@@ -387,6 +388,15 @@ export default function GenerationsPage() {
     );
   }
 
+  // Configurar reglas (3) sigue activo hasta que exista una generación en
+  // curso; Generar (4) mientras está pendiente/procesando; Exportar (5) una
+  // vez completada (ahí es cuando el menú de exportación tiene sentido).
+  const currentFlowStep = !selectedGeneration
+    ? 3
+    : selectedGeneration.status === "COMPLETED"
+      ? 5
+      : 4;
+
   return (
     <AuthGuard>
       <div className="min-h-screen bg-slate-100">
@@ -413,6 +423,10 @@ export default function GenerationsPage() {
             </svg>
             Volver al proyecto
           </Link>
+
+          {projectId && (
+            <FlowStepper projectId={projectId} currentStep={currentFlowStep} />
+          )}
 
           <section className="relative mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
             <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-violet-100 blur-3xl" />

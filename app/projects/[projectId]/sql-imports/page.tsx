@@ -25,6 +25,7 @@ import {
 import { GenerationPlan, PlanRule } from "@/app/types/generation-plan";
 import { generateSqlSchemaRequest } from "@/app/lib/sql-schema-generator";
 import { GeneratedSqlSchema } from "@/app/types/generated-sql-schema";
+import { FlowStepper } from "@/components/flow-stepper";
 
 type DbTypeKey = "POSTGRESQL" | "MYSQL" | "MONGODB";
 
@@ -563,6 +564,11 @@ export default function SqlImportsPage() {
     [selectedTables],
   );
 
+  // Importar (1) → Revisar estructura (2) → Configurar reglas (3): hasta
+  // aquí no hay todavía un esquema seleccionado, o el usuario está revisando
+  // la tabla detectada o las advertencias de coherencia de la IA.
+  const currentFlowStep = !selectedImport ? 1 : resultTab === "ai" ? 3 : 2;
+
   return (
     <AuthGuard>
       <div className="min-h-screen bg-slate-100">
@@ -589,6 +595,10 @@ export default function SqlImportsPage() {
             </svg>
             Volver al proyecto
           </Link>
+
+          {projectId && (
+            <FlowStepper projectId={projectId} currentStep={currentFlowStep} />
+          )}
 
           <section className="mt-6 rounded-2xl bg-white p-8 shadow-sm">
             <p className="text-sm font-medium text-slate-500">
