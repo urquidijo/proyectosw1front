@@ -135,6 +135,9 @@ export default function SqlImportsPage() {
   type SqlInputMode = "manual" | "file" | "ai";
 
   const [sqlInputMode, setSqlInputMode] = useState<SqlInputMode>("manual");
+  const [resultTab, setResultTab] = useState<"schema" | "ai" | "history">(
+    "schema",
+  );
   const [schemaDescription, setSchemaDescription] = useState("");
   const [generatingSqlSchema, setGeneratingSqlSchema] = useState(false);
   const [generatedSqlSchema, setGeneratedSqlSchema] =
@@ -451,6 +454,7 @@ export default function SqlImportsPage() {
       setImports((currentImports) => [createdImport, ...currentImports]);
       setSelectedImport(createdImport);
       setGenerationPlan(null);
+      setResultTab("schema");
     } catch (error) {
       setError(
         error instanceof Error
@@ -483,6 +487,7 @@ export default function SqlImportsPage() {
       setFileName("");
       setGeneratedSqlSchema(null);
       setSqlInputMode("manual");
+      setResultTab("schema");
     } catch (error) {
       setError(
         error instanceof Error
@@ -978,6 +983,46 @@ export default function SqlImportsPage() {
                   </>
                 )}
               </div>
+
+              <div className="flex w-fit gap-1 rounded-2xl bg-white p-1.5 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setResultTab("schema")}
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                    resultTab === "schema"
+                      ? "bg-slate-900 text-white"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  Esquema detectado
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setResultTab("ai")}
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                    resultTab === "ai"
+                      ? "bg-slate-900 text-white"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  Coherencia IA
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setResultTab("history")}
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                    resultTab === "history"
+                      ? "bg-slate-900 text-white"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  Historial ({imports.length})
+                </button>
+              </div>
+
+              {resultTab === "schema" && (
               <div className="rounded-2xl bg-white p-6 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -1142,6 +1187,9 @@ export default function SqlImportsPage() {
                   </div>
                 )}
               </div>
+              )}
+
+              {resultTab === "ai" && (
               <div className="rounded-2xl bg-white p-6 shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
@@ -1334,7 +1382,9 @@ export default function SqlImportsPage() {
                   </div>
                 )}
               </div>
+              )}
 
+              {resultTab === "history" && (
               <div className="rounded-2xl bg-white p-6 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -1435,6 +1485,7 @@ export default function SqlImportsPage() {
                   )}
                 </div>
               </div>
+              )}
             </div>
           </section>
         </main>

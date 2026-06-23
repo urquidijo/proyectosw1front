@@ -52,6 +52,9 @@ export default function GenerationsPage() {
   const [error, setError] = useState("");
   const [region, setRegion] = useState("BOLIVIA");
   const [suggesting, setSuggesting] = useState(false);
+  const [resultTab, setResultTab] = useState<"preview" | "history">(
+    "preview",
+  );
 
   useEffect(() => {
     if (!selectedGeneration || !projectId) return;
@@ -291,6 +294,7 @@ export default function GenerationsPage() {
         createdGeneration,
         ...currentGenerations,
       ]);
+      setResultTab("preview");
     } catch (error) {
       setError(
         error instanceof Error ? error.message : "Error al generar los datos",
@@ -322,6 +326,7 @@ export default function GenerationsPage() {
       );
 
       setSelectedGeneration(generation);
+      setResultTab("preview");
     } catch (error) {
       setError(
         error instanceof Error
@@ -680,6 +685,33 @@ export default function GenerationsPage() {
                 </aside>
 
                 <div className="min-w-0 space-y-6">
+                  <div className="flex w-fit gap-1 rounded-2xl bg-white p-1.5 shadow-sm">
+                    <button
+                      type="button"
+                      onClick={() => setResultTab("preview")}
+                      className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                        resultTab === "preview"
+                          ? "bg-slate-900 text-white"
+                          : "text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      Vista previa
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setResultTab("history")}
+                      className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                        resultTab === "history"
+                          ? "bg-slate-900 text-white"
+                          : "text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      Historial ({generations.length})
+                    </button>
+                  </div>
+
+                  {resultTab === "preview" && (
                   <section className="min-w-0 overflow-hidden rounded-3xl bg-white p-6 shadow-sm">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div>
@@ -864,7 +896,9 @@ export default function GenerationsPage() {
                       </div>
                     )}
                   </section>
+                  )}
 
+                  {resultTab === "history" && (
                   <section className="rounded-3xl bg-white p-6 shadow-sm">
                     <div>
                       <h2 className="text-lg font-bold text-slate-900">
@@ -960,6 +994,7 @@ export default function GenerationsPage() {
                       )}
                     </div>
                   </section>
+                  )}
                 </div>
               </section>
             </>
