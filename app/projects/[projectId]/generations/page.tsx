@@ -570,10 +570,27 @@ export default function GenerationsPage() {
                           {validImports.map((item) => (
                             <option key={item.id} value={item.id}>
                               {new Date(item.createdAt).toLocaleString()} -{" "}
-                              {item.schemaJson?.tables.length ?? 0} tablas
+                              {item.schemaJson?.tables.length ?? 0} tablas (
+                              {item.engine === "MONGODB"
+                                ? "MongoDB"
+                                : "PostgreSQL"}
+                              )
                             </option>
                           ))}
                         </select>
+
+                        {selectedImport && (
+                          <p className="mt-2 text-xs text-slate-500">
+                            Motor: {" "}
+                            <strong>
+                              {selectedImport.engine === "MONGODB"
+                                ? "MongoDB"
+                                : "PostgreSQL"}
+                            </strong>{" "}
+                            — heredado de la importación; los datos y el dump
+                            se generarán para ese motor.
+                          </p>
+                        )}
                       </div>
 
                       <div>
@@ -679,6 +696,7 @@ export default function GenerationsPage() {
                         <ExportMenu
                           projectId={projectId}
                           generationId={selectedGeneration.id}
+                          engine={selectedGeneration.engine}
                           label="Exportar dataset"
                           onError={setError}
                         />
@@ -831,6 +849,7 @@ export default function GenerationsPage() {
                                       projectId={projectId}
                                       generationId={selectedGeneration.id}
                                       table={tableName}
+                                      engine={selectedGeneration.engine}
                                       label={`Exportar "${tableName}"`}
                                       onError={setError}
                                     />
@@ -897,6 +916,12 @@ export default function GenerationsPage() {
                                         Con reglas
                                       </span>
                                     )}
+
+                                    <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-medium text-sky-700">
+                                      {generation.engine === "MONGODB"
+                                        ? "MongoDB"
+                                        : "PostgreSQL"}
+                                    </span>
                                   </div>
                                 </div>
 
@@ -916,6 +941,7 @@ export default function GenerationsPage() {
                                     <ExportMenu
                                       projectId={projectId}
                                       generationId={generation.id}
+                                      engine={generation.engine}
                                       label="Exportar"
                                       onError={setError}
                                     />

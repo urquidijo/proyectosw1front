@@ -9,7 +9,11 @@ import {
   getSqlImportRequest,
   listSqlImportsRequest,
 } from "@/app/lib/sql-imports";
-import { SqlImport } from "@/app/types/sql-import";
+import {
+  SqlImport,
+  SqlImportEngine,
+  SqlImportDialect,
+} from "@/app/types/sql-import";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
@@ -22,7 +26,51 @@ import { GenerationPlan, PlanRule } from "@/app/types/generation-plan";
 import { generateSqlSchemaRequest } from "@/app/lib/sql-schema-generator";
 import { GeneratedSqlSchema } from "@/app/types/generated-sql-schema";
 
-const EXAMPLE_SQL = `CREATE TABLE clientes (
+type DbTypeKey = "POSTGRESQL" | "MYSQL" | "MONGODB";
+
+/**
+ * Una sola elección visual (como el selector de conexión de TablePlus) que
+ * resuelve dos decisiones a la vez: la sintaxis del DDL pegado (`dialect`) y
+ * el motor sobre el que se generarán los datos (`engine`). MySQL es un motor
+ * relacional sin un formato de dump propio en esta app, así que reutiliza el
+ * dump SQL genérico (mismo INSERT INTO que PostgreSQL).
+ */
+const DB_TYPE_OPTIONS: {
+  key: DbTypeKey;
+  label: string;
+  initials: string;
+  badgeClassName: string;
+  dialect: SqlImportDialect;
+  engine: SqlImportEngine;
+}[] = [
+  {
+    key: "POSTGRESQL",
+    label: "PostgreSQL",
+    initials: "Pg",
+    badgeClassName: "bg-sky-600",
+    dialect: "POSTGRESQL",
+    engine: "POSTGRESQL",
+  },
+  {
+    key: "MYSQL",
+    label: "MySQL",
+    initials: "My",
+    badgeClassName: "bg-orange-500",
+    dialect: "MYSQL",
+    engine: "POSTGRESQL",
+  },
+  {
+    key: "MONGODB",
+    label: "MongoDB",
+    initials: "Mo",
+    badgeClassName: "bg-emerald-600",
+    dialect: "POSTGRESQL",
+    engine: "MONGODB",
+  },
+];
+
+const EXAMPLE_SQL_BY_DIALECT: Record<SqlImportDialect, string> = {
+  POSTGRESQL: `CREATE TABLE clientes (
   id SERIAL PRIMARY KEY,
   nombre VARCHAR(100),
   email VARCHAR(100),
@@ -34,7 +82,24 @@ CREATE TABLE pedidos (
   cliente_id INT REFERENCES clientes(id),
   fecha DATE,
   total DECIMAL(10,2)
-);`;
+);`,
+  MYSQL: `CREATE TABLE \`clientes\` (
+  \`id\` INT NOT NULL AUTO_INCREMENT,
+  \`nombre\` VARCHAR(100),
+  \`email\` VARCHAR(100),
+  \`telefono\` VARCHAR(20),
+  PRIMARY KEY (\`id\`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE \`pedidos\` (
+  \`id\` INT NOT NULL AUTO_INCREMENT,
+  \`cliente_id\` INT NOT NULL,
+  \`fecha\` DATE,
+  \`total\` DECIMAL(10,2),
+  PRIMARY KEY (\`id\`),
+  FOREIGN KEY (\`cliente_id\`) REFERENCES \`clientes\`(\`id\`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`,
+};
 
 export default function SqlImportsPage() {
   const params = useParams();
@@ -44,6 +109,11 @@ export default function SqlImportsPage() {
     : params.projectId;
 
   const [sql, setSql] = useState("");
+  const [dbType, setDbType] = useState<DbTypeKey>("POSTGRESQL");
+  const { dialect, engine } = useMemo(
+    () => DB_TYPE_OPTIONS.find((option) => option.key === dbType)!,
+    [dbType],
+  );
   const [imports, setImports] = useState<SqlImport[]>([]);
   const [selectedImport, setSelectedImport] = useState<SqlImport | null>(null);
 
@@ -137,6 +207,7 @@ export default function SqlImportsPage() {
         token,
         projectId,
         schemaDescription,
+        dialect,
       );
 
       setGeneratedSqlSchema(generated);
@@ -175,7 +246,7 @@ export default function SqlImportsPage() {
     setError("");
   }
   function loadExampleSql() {
-    setSql(EXAMPLE_SQL);
+    setSql(EXAMPLE_SQL_BY_DIALECT[dialect]);
     setSqlInputMode("manual");
     setFileName("");
     setGeneratedSqlSchema(null);
@@ -373,6 +444,8 @@ export default function SqlImportsPage() {
 
       const createdImport = await createSqlImportRequest(token, projectId, {
         sql,
+        engine,
+        dialect,
       });
 
       setImports((currentImports) => [createdImport, ...currentImports]);
@@ -514,7 +587,7 @@ export default function SqlImportsPage() {
 
           <section className="mt-6 rounded-2xl bg-white p-8 shadow-sm">
             <p className="text-sm font-medium text-slate-500">
-              Importación PostgreSQL
+              Importación {engine === "MONGODB" ? "MongoDB" : "PostgreSQL"}
             </p>
 
             <h1 className="mt-2 text-3xl font-bold text-slate-900">
@@ -568,6 +641,42 @@ export default function SqlImportsPage() {
                 </div>
               </div>
 
+              <div className="mt-6">
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  Base de datos
+                </label>
+
+                <div className="flex gap-3">
+                  {DB_TYPE_OPTIONS.map((option) => (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() => setDbType(option.key)}
+                      className={`flex flex-1 flex-col items-center gap-2 rounded-2xl border-2 p-3 transition ${
+                        dbType === option.key
+                          ? "border-slate-900 bg-slate-50"
+                          : "border-slate-200 hover:border-slate-300"
+                      }`}
+                    >
+                      <span
+                        className={`flex h-11 w-11 items-center justify-center rounded-full text-sm font-bold text-white ${option.badgeClassName}`}
+                      >
+                        {option.initials}
+                      </span>
+                      <span className="text-xs font-semibold text-slate-700">
+                        {option.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                <p className="mt-2 text-xs text-slate-500">
+                  Detectamos automáticamente si el SQL no corresponde a la base
+                  elegida (ej. sintaxis MySQL con PostgreSQL seleccionado) y lo
+                  rechazamos antes de analizarlo.
+                </p>
+              </div>
+
               <div className="mt-6 grid grid-cols-3 rounded-xl bg-slate-100 p-1">
                 <button
                   type="button"
@@ -578,7 +687,7 @@ export default function SqlImportsPage() {
                       : "text-slate-500 hover:text-slate-700"
                   }`}
                 >
-                  Pegar SQL
+                  {engine === "MONGODB" ? "Pegar estructura" : "Pegar SQL"}
                 </button>
 
                 <button
@@ -590,7 +699,7 @@ export default function SqlImportsPage() {
                       : "text-slate-500 hover:text-slate-700"
                   }`}
                 >
-                  Subir .sql
+                  {engine === "MONGODB" ? "Subir archivo" : "Subir .sql"}
                 </button>
 
                 <button
@@ -610,8 +719,12 @@ export default function SqlImportsPage() {
                 {sqlInputMode === "manual" && (
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-sm text-slate-600">
-                      Pega directamente un script DDL PostgreSQL. Luego podrás
-                      revisarlo y analizarlo.
+                      Pega directamente un script DDL SQL (tablas, columnas y
+                      relaciones). Luego podrás revisarlo y analizarlo
+                      {engine === "MONGODB"
+                        ? "; se traducirá a colecciones de MongoDB"
+                        : ""}
+                      .
                     </p>
                   </div>
                 )}
@@ -620,6 +733,9 @@ export default function SqlImportsPage() {
                   <div>
                     <label className="mb-2 block text-sm font-medium text-slate-700">
                       Archivo SQL
+                      {engine === "MONGODB"
+                        ? " (define la estructura; se traducirá a colecciones)"
+                        : ""}
                     </label>
 
                     <input
@@ -703,7 +819,13 @@ export default function SqlImportsPage() {
 
                 <div>
                   <label className="mb-2 block text-sm font-medium text-slate-700">
-                    SQL PostgreSQL editable
+                    SQL editable
+                    {dialect === "MYSQL"
+                      ? " (sintaxis MySQL)"
+                      : " (sintaxis PostgreSQL)"}
+                    {engine === "MONGODB"
+                      ? " — se traducirá a colecciones MongoDB"
+                      : ""}
                   </label>
 
                   <textarea
@@ -1269,6 +1391,16 @@ export default function SqlImportsPage() {
 
                                 <span className="text-xs text-slate-400">
                                   {new Date(item.createdAt).toLocaleString()}
+                                </span>
+
+                                <span className="rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold text-sky-700">
+                                  {item.engine === "MONGODB"
+                                    ? "MongoDB"
+                                    : "PostgreSQL"}
+                                </span>
+
+                                <span className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                                  SQL: {item.dialect === "MYSQL" ? "MySQL" : "PostgreSQL"}
                                 </span>
                               </div>
 

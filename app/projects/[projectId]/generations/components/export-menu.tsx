@@ -4,7 +4,8 @@ import { getToken } from "@/app/lib/auth";
 import {
   downloadGenerationExportRequest,
   triggerBlobDownload,
-  EXPORT_FORMATS,
+  getExportFormats,
+  ExportEngine,
   ExportFormat,
 } from "@/app/lib/exports";
 import { useEffect, useRef, useState } from "react";
@@ -12,8 +13,10 @@ import { useEffect, useRef, useState } from "react";
 type ExportMenuProps = {
   projectId: string;
   generationId: string;
-  /** Si se indica, exporta solo esa tabla (SQL no admite este filtro). */
+  /** Si se indica, exporta solo esa tabla (el dump nativo no admite este filtro). */
   table?: string;
+  /** Motor de la generación: adapta la etiqueta del dump nativo (SQL vs MongoDB). */
+  engine?: ExportEngine;
   label?: string;
   onError?: (message: string) => void;
   className?: string;
@@ -23,6 +26,7 @@ export function ExportMenu({
   projectId,
   generationId,
   table,
+  engine,
   label = "Exportar",
   onError,
   className = "",
@@ -31,9 +35,10 @@ export function ExportMenu({
   const [loadingFormat, setLoadingFormat] = useState<ExportFormat | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const allFormats = getExportFormats(engine);
   const formats = table
-    ? EXPORT_FORMATS.filter((format) => format.value !== "sql")
-    : EXPORT_FORMATS;
+    ? allFormats.filter((format) => format.value !== "sql")
+    : allFormats;
 
   useEffect(() => {
     if (!open) return;

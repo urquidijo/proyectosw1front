@@ -6,6 +6,8 @@ import type { GenerationRulesJson } from "./generation-rule";
 
 export type PreviewJson = Record<string, GeneratedRow[]>;
 
+export type GenerationEngine = "POSTGRESQL" | "MONGODB";
+
 export type CreateGenerationPayload = {
   sqlImportId: string;
   rowConfig: Record<string, number>;
@@ -25,6 +27,7 @@ export type Generation = {
   progress: number;
   error?: string | null;
   region?: string | null;
+  engine?: GenerationEngine;
   createdAt: string;
   updatedAt: string;
   orderedTables?: string[];

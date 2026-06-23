@@ -26,11 +26,16 @@ export type DetectedTable = {
 };
 
 export type DetectedSchema = {
-  dialect: 'postgresql';
+  dialect: 'postgresql' | 'mysql';
   tables: DetectedTable[];
 };
 
 export type SqlImportStatus = 'VALID' | 'INVALID';
+
+export type SqlImportEngine = 'POSTGRESQL' | 'MONGODB';
+
+/** Sintaxis del script DDL pegado/subido. No confundir con SqlImportEngine (motor destino de los datos). */
+export type SqlImportDialect = 'POSTGRESQL' | 'MYSQL';
 
 export type SqlImport = {
   id: string;
@@ -39,10 +44,14 @@ export type SqlImport = {
   status: SqlImportStatus;
   schemaJson: DetectedSchema | null;
   errors: string[] | null;
+  engine?: SqlImportEngine;
+  dialect?: SqlImportDialect;
   createdAt: string;
   updatedAt: string;
 };
 
 export type CreateSqlImportPayload = {
   sql: string;
+  engine?: SqlImportEngine;
+  dialect?: SqlImportDialect;
 };

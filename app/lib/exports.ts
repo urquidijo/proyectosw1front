@@ -6,12 +6,40 @@ if (!API_URL) {
 
 export type ExportFormat = "sql" | "csv" | "json" | "xlsx";
 
+export type ExportEngine = "POSTGRESQL" | "MONGODB";
+
 export const EXPORT_FORMATS: { value: ExportFormat; label: string; hint: string }[] = [
-  { value: "sql", label: "SQL", hint: "Script de INSERTs, igual al de siempre" },
+  { value: "sql", label: "Dump nativo", hint: "INSERTs para PostgreSQL o insertMany para MongoDB, según el motor elegido" },
   { value: "csv", label: "CSV", hint: "Una tabla, o un .zip con un .csv por tabla" },
   { value: "json", label: "JSON", hint: "Arreglo de filas, ideal para scripts/APIs" },
   { value: "xlsx", label: "Excel (.xlsx)", hint: "Un libro con una hoja por tabla" },
 ];
+
+/** El formato "sql" (dump nativo) se renombra según el motor real de la generación. */
+export function getExportFormats(
+  engine?: ExportEngine,
+): { value: ExportFormat; label: string; hint: string }[] {
+  const nativeDumpByEngine: Record<ExportEngine, { label: string; hint: string }> = {
+    POSTGRESQL: {
+      label: "Dump SQL (.sql)",
+      hint: "INSERT INTO ... listo para ejecutar con psql",
+    },
+    MONGODB: {
+      label: "Script MongoDB (.js)",
+      hint: "db.coleccion.insertMany([...]) listo para ejecutar con mongosh",
+    },
+  };
+
+  if (!engine) {
+    return EXPORT_FORMATS;
+  }
+
+  const nativeDump = nativeDumpByEngine[engine];
+
+  return EXPORT_FORMATS.map((format) =>
+    format.value === "sql" ? { value: "sql" as const, ...nativeDump } : format,
+  );
+}
 
 type DownloadedFile = {
   blob: Blob;
