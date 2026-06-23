@@ -2,13 +2,21 @@
 
 import { Navbar } from "@/components/navbar";
 import { SubscriptionPlan, listActivePlansRequest } from "@/app/lib/plans";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { getStoredUser, getToken } from "@/app/lib/auth";
 import { createCheckoutSessionRequest } from "@/app/lib/payments";
 import { useRouter, useSearchParams } from "next/navigation";
 
 export default function PlansPage() {
+  return (
+    <Suspense fallback={null}>
+      <PlansPageContent />
+    </Suspense>
+  );
+}
+
+function PlansPageContent() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [userPlanId, setUserPlanId] = useState<string | null>(null);
