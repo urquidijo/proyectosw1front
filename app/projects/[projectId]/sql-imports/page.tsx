@@ -569,6 +569,22 @@ export default function SqlImportsPage() {
   // la tabla detectada o las advertencias de coherencia de la IA.
   const currentFlowStep = !selectedImport ? 1 : resultTab === "ai" ? 3 : 2;
 
+  // El backend marca la advertencia de "se usó IA local" con este prefijo
+  // estable (ver LOCAL_AI_WARNING_PREFIX en semantic-analyzer.service.ts) en
+  // vez de buscar coincidencias de texto libre, que se rompería si cambia la
+  // redacción. Se separa del resto para mostrarla como un aviso propio.
+  const localAiWarning = useMemo(() => {
+    const raw = generationPlan?.planJson.warnings.find((warning) =>
+      warning.startsWith("[LOCAL_AI]"),
+    );
+    return raw ? raw.replace("[LOCAL_AI]", "").trim() : null;
+  }, [generationPlan]);
+
+  const otherWarnings =
+    generationPlan?.planJson.warnings.filter(
+      (warning) => !warning.startsWith("[LOCAL_AI]"),
+    ) ?? [];
+
   return (
     <AuthGuard>
       <div className="min-h-screen bg-slate-100">
@@ -598,6 +614,26 @@ export default function SqlImportsPage() {
 
           {projectId && (
             <FlowStepper projectId={projectId} currentStep={currentFlowStep} />
+          )}
+
+          {localAiWarning && (
+            <div className="mt-6 flex items-center gap-3 rounded-xl border border-sky-200 bg-sky-50 p-4">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                className="h-6 w-6 shrink-0 text-sky-600"
+                aria-hidden="true"
+              >
+                <rect x="3" y="4" width="18" height="13" rx="2" stroke="currentColor" strokeWidth="1.8" />
+                <path d="M8 21h8M12 17v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+              <div>
+                <p className="font-semibold text-sky-800">
+                  🖥️ Ejecutando IA local (Ollama)
+                </p>
+                <p className="mt-1 text-sm text-sky-700">{localAiWarning}</p>
+              </div>
+            </div>
           )}
 
           <section className="mt-6 rounded-2xl bg-white p-8 shadow-sm">
@@ -1367,18 +1403,16 @@ export default function SqlImportsPage() {
                       </div>
                     </details>
 
-                    {generationPlan.planJson.warnings.length > 0 && (
+                    {otherWarnings.length > 0 && (
                       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
                         <p className="font-semibold text-amber-800">
                           Advertencias
                         </p>
 
                         <ul className="mt-3 space-y-2 text-sm text-amber-700">
-                          {generationPlan.planJson.warnings.map(
-                            (warning, index) => (
-                              <li key={`${warning}-${index}`}>• {warning}</li>
-                            ),
-                          )}
+                          {otherWarnings.map((warning, index) => (
+                            <li key={`${warning}-${index}`}>• {warning}</li>
+                          ))}
                         </ul>
                       </div>
                     )}
